@@ -1,0 +1,201 @@
+/* ══════════════════════════════════════════════════════════════════
+   FamilyRoot — styles.css
+   ------------------------------------------------------------------
+   Visual styling for the FamilyRoot family-tree app. Pairs with
+   index.html (structure) and app.js (behaviour/state).
+
+   Colour system: every colour used across the app is defined once as
+   a CSS variable on :root, so the whole theme can be re-skinned by
+   editing the handful of values below.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --p:#7B2FBE;   /* primary purple — topbar, buttons, active states */
+  --pl:#9D4EDD;  /* lighter purple — secondary accents, tree lines */
+  --pp:#EDE7F6;  /* pale purple — hover backgrounds, chips */
+  --pd:#5A189A;  /* dark purple — headings/labels inside modals */
+  --ac:#C77DFF;  /* accent — the member-count badge */
+  --bg:#F5F0FB;  /* app background */
+  --line:#9D4EDD; /* (kept for compatibility; tree lines use --pl directly) */
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);overflow:hidden;height:100vh;width:100vw;}
+
+/* ── TOPBAR ───────────────────────────────────────────────────────
+   Fixed strip at the very top. Houses the sidebar toggle, the current
+   tree's name (tap to switch trees), the member-count badge, and
+   quick-access icon buttons (switch view / share / add). */
+.topbar{background:var(--p);color:#fff;height:52px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 12px;position:fixed;top:0;left:0;right:0;z-index:100;
+  box-shadow:0 2px 10px rgba(91,24,154,.35);}
+.brand{font-size:1.05rem;font-weight:700;letter-spacing:.3px;}
+.badge-ct{background:var(--ac);border-radius:20px;padding:3px 10px;font-size:.73rem;font-weight:700;}
+.ib{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;padding:4px 7px;line-height:1;border-radius:6px;}
+.ib:hover{background:rgba(255,255,255,.15);}
+
+/* ── SIDEBAR ──────────────────────────────────────────────────────
+   Slide-in drawer (off-canvas to the left, toggled via .open) listing
+   every top-level action: switching trees, backup/restore, sharing,
+   import/export. .overlay dims the rest of the screen while it's open
+   and closes it on tap. */
+.sidebar{position:fixed;top:0;left:-270px;width:270px;height:100vh;background:#fff;z-index:300;
+  transition:left .25s ease;box-shadow:4px 0 24px rgba(0,0,0,.18);}
+.sidebar.open{left:0;}
+.sb-head{background:linear-gradient(135deg,var(--p),var(--pl));color:#fff;padding:22px 18px 16px;}
+.sb-av{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;
+  align-items:center;justify-content:center;margin-bottom:8px;font-size:1.6rem;}
+.sb-name{font-weight:700;font-size:.93rem;}
+.sb-ct{font-size:.73rem;opacity:.75;margin-top:2px;}
+.sb-item{display:flex;align-items:center;gap:12px;padding:13px 18px;cursor:pointer;color:#333;
+  border-bottom:1px solid #f3eefb;font-size:.9rem;transition:background .13s;}
+.sb-item:hover{background:var(--pp);color:var(--p);}
+.sb-icon{font-size:1.1rem;width:22px;text-align:center;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;}
+.overlay.show{display:block;}
+
+/* ── CANVAS (pan & zoom) ──────────────────────────────────────────
+   The tree is NOT rendered inside a native scrollbar. #canvasWrap is
+   the fixed viewport; #zoomLayer is the layer app.js actually
+   translates/scales via a CSS transform (see PAN & ZOOM in app.js) to
+   give a free-panning, pinch-zoomable "infinite canvas" feel.
+   #innerWrap sizes itself to exactly fit the computed tree layout and
+   holds both the SVG connector lines and the member node cards. */
+.canvas-wrap{position:fixed;top:52px;left:0;right:0;bottom:0;overflow:hidden;background:var(--bg);touch-action:none;cursor:grab;}
+.canvas-wrap.grabbing{cursor:grabbing;}
+#zoomLayer{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+#innerWrap{position:relative;display:inline-block;}
+
+/* ── EMPTY STATE ──────────────────────────────────────────────────
+   Shown instead of the canvas when the active tree has zero members. */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:calc(100vh - 52px);gap:14px;color:#aaa;text-align:center;padding:40px;}
+.empty-icon{font-size:4rem;}
+.empty h5{color:#888;font-weight:700;font-size:1rem;}
+.empty p{font-size:.84rem;color:#aaa;max-width:250px;line-height:1.55;}
+.btn-start{background:var(--p);color:#fff;border:none;border-radius:24px;padding:12px 30px;
+  font-size:.93rem;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(123,47,190,.35);
+  transition:transform .15s,box-shadow .15s;}
+.btn-start:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(123,47,190,.4);}
+
+/* ── MEMBER NODE (tree card) ──────────────────────────────────────
+   One .node per member, absolutely positioned inside #innerWrap at
+   coordinates computed by the layout algorithm in app.js. The `left`/
+   `top` transition below is what makes nodes glide smoothly into
+   place after a re-layout (e.g. after reordering siblings) — it's
+   turned off (.dragging) while a node is actively being dragged, so
+   it can follow the pointer/finger with zero lag. */
+.node{position:absolute;width:90px;display:flex;flex-direction:column;align-items:center;
+  cursor:pointer;user-select:none;transition:left .25s ease,top .25s ease;}
+.node.dragging{transition:none;z-index:50;cursor:grabbing;}
+.node.dragging .node-card{box-shadow:0 10px 24px rgba(0,0,0,.28);border-color:var(--p);}
+.node-card{width:84px;background:#fff;border:2.5px solid #d4bbf5;border-radius:12px;
+  padding:7px 5px 6px;text-align:center;position:relative;
+  box-shadow:0 2px 8px rgba(123,47,190,.1);transition:border-color .15s,box-shadow .15s;}
+.node.sel .node-card{border-color:var(--p);box-shadow:0 0 0 3px rgba(123,47,190,.22);}
+.node-card:hover{border-color:var(--pl);box-shadow:0 2px 14px rgba(123,47,190,.2);}
+.node-photo{width:50px;height:50px;border-radius:8px;background:#ede7f6;margin:0 auto 5px;
+  display:flex;align-items:center;justify-content:center;font-size:1.6rem;overflow:hidden;}
+.node-photo.f{background:#fce4ec;} /* pink tint for female members */
+.node-photo img{width:100%;height:100%;object-fit:cover;}
+.node-name{font-size:.63rem;color:#222;font-weight:600;line-height:1.25;word-break:break-word;
+  min-height:16px;}
+/* The small circular badge under a node with descendants — tap to
+   collapse/expand that branch (▼ expanded, ▶ collapsed). */
+.exp-dot{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
+  width:18px;height:18px;border-radius:50%;background:var(--pl);display:flex;
+  align-items:center;justify-content:center;font-size:.5rem;color:#fff;font-weight:700;
+  cursor:pointer;box-shadow:0 1px 4px rgba(123,47,190,.4);transition:transform .12s,background .12s;
+  z-index:5;}
+.exp-dot:hover{background:var(--p);transform:translateX(-50%) scale(1.15);}
+
+/* ── LIST VIEW ────────────────────────────────────────────────────
+   Alternate, plain scrollable list of every member (searchable) —
+   toggled against the tree canvas via the ⇄ topbar button. */
+#listView{display:none;position:fixed;top:52px;left:0;right:0;bottom:0;
+  background:#fff;overflow-y:auto;z-index:50;}
+.list-search{padding:10px 14px;background:#fff;border-bottom:1px solid #f0eaf8;
+  position:sticky;top:0;z-index:2;}
+.list-search input{border-radius:20px;border:1.5px solid #d4bbf5;padding:7px 16px;
+  width:100%;font-size:.87rem;outline:none;}
+.list-search input:focus{border-color:var(--p);}
+.list-item{display:flex;align-items:center;gap:14px;padding:13px 16px;
+  border-bottom:1px solid #f5f0fb;cursor:pointer;transition:background .12s;}
+.list-item:hover{background:var(--pp);}
+.list-av{width:46px;height:46px;border-radius:8px;background:#ede7f6;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0;font-size:1.5rem;overflow:hidden;}
+.list-av.f{background:#fce4ec;}
+.list-av img{width:100%;height:100%;object-fit:cover;}
+.lname{font-weight:600;font-size:.9rem;}
+.lrel{font-size:.74rem;color:#aaa;margin-top:1px;}
+
+/* ── FLOATING ACTION BUTTONS ──────────────────────────────────────
+   Stacked bottom-right over the canvas: fit-to-screen, share, add. */
+.fab-wrap{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;
+  gap:10px;z-index:90;}
+.fab{width:50px;height:50px;border-radius:50%;border:none;display:flex;align-items:center;
+  justify-content:center;font-size:1.25rem;cursor:pointer;transition:transform .15s;
+  box-shadow:0 4px 14px rgba(123,47,190,.32);}
+.fab:hover{transform:scale(1.08);}
+.fab1{background:var(--p);color:#fff;}
+.fab2{background:var(--pl);color:#fff;}
+
+/* ── SHARED MODAL / FORM STYLING ──────────────────────────────────
+   Used by every Bootstrap modal in index.html (Add/Edit Member, View
+   Info, My Trees, Share, generic Prompt/Confirm, etc.) */
+.mhead{background:var(--p);color:#fff;padding:15px 18px;border-radius:.9rem .9rem 0 0;
+  display:flex;align-items:center;justify-content:space-between;}
+.mhead span{font-weight:700;font-size:1rem;}
+.mhead button{background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;
+  line-height:1;padding:2px 6px;border-radius:4px;}
+.mhead button:hover{background:rgba(255,255,255,.2);}
+.form-lbl{font-size:.79rem;font-weight:600;color:var(--pd);margin-bottom:4px;display:block;}
+.fc{font-size:.87rem;border:1.5px solid #d4bbf5;border-radius:8px;padding:8px 12px;
+  width:100%;outline:none;font-family:inherit;}
+.fc:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(123,47,190,.12);}
+.btn-p{background:var(--p);color:#fff;border:none;border-radius:8px;padding:9px 22px;
+  font-weight:600;font-size:.87rem;cursor:pointer;transition:background .15s;}
+.btn-p:hover{background:var(--pd);}
+
+/* ── ACTION GRID ──────────────────────────────────────────────────
+   The 3-column icon grid inside the "choose an action" modal that
+   appears when you tap a node (Add Father, Add Spouse, Edit, etc). */
+.act-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.act-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;
+  border-radius:10px;cursor:pointer;border:2px solid transparent;text-align:center;
+  transition:all .13s;}
+.act-btn:hover{background:var(--pp);border-color:var(--p);}
+.act-btn.dis{opacity:.35;pointer-events:none;} /* e.g. "Add Spouse" once they already have one */
+.act-ic{width:48px;height:48px;border-radius:50%;background:var(--pp);display:flex;
+  align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto;}
+.act-lbl{font-size:.7rem;color:var(--pd);font-weight:600;}
+
+/* ── MEMBER DETAIL ("View Info") ──────────────────────────────────
+   The scrollable read-only profile sheet: gradient header with photo
+   + name, then a stack of .irow label/value rows for every field. */
+.det-head{background:linear-gradient(135deg,var(--p),var(--pl));color:#fff;
+  padding:22px 20px 18px;text-align:center;}
+.det-av{width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.2);
+  margin:0 auto 10px;display:flex;align-items:center;justify-content:center;
+  font-size:2.2rem;overflow:hidden;}
+.det-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.det-name{font-size:1.1rem;font-weight:700;}
+.det-sub{font-size:.78rem;opacity:.82;margin-top:2px;}
+.irow{display:flex;align-items:flex-start;gap:12px;padding:10px 0;
+  border-bottom:1px solid #f5f0fb;}
+.irow .ico{font-size:1rem;width:20px;text-align:center;margin-top:2px;flex-shrink:0;}
+.ilbl{font-size:.72rem;color:#aaa;}
+.ival{font-size:.88rem;font-weight:500;color:#222;margin-top:1px;}
+
+/* ── TOAST ────────────────────────────────────────────────────────
+   Small floating status message (e.g. "Member added!"), shown/hidden
+   by toggling the .show class from showToast() in app.js. */
+.toast-f{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none;}
+.toast-m{background:#1a1a1a;color:#fff;padding:9px 22px;border-radius:20px;font-size:.83rem;
+  opacity:0;transition:opacity .25s;white-space:nowrap;}
+.toast-m.show{opacity:1;}
+
+/* ── SVG CONNECTOR LINES ──────────────────────────────────────────
+   The <svg id="treeSvg"> sits behind/among the node cards inside
+   #innerWrap and is redrawn from scratch on every renderTree() call
+   (spouse links, parent→children lines, dashed "in-law" connectors). */
+#treeSvg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
