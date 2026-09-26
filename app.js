@@ -133,11 +133,36 @@ function load(){
     APP.activeTreeId=id;
   }
   if(!APP.activeTreeId || !APP.trees[APP.activeTreeId]) APP.activeTreeId=Object.keys(APP.trees)[0];
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const tId = urlParams.get('treeId');
+  if(tId && APP.trees[tId]) {
+    APP.activeTreeId = tId;
+  }
+
   DB=APP.trees[APP.activeTreeId];
   if(!Array.isArray(DB.collapsed)) DB.collapsed=[];
   (DB.members||[]).forEach(m=>{ if(!m.personId) m.personId=genPersonId(); });
+  repairSpouseLinks();
+  normalizeCollapsed();
   updCt();
   updateTreeBadge();
+}
+// One-way/asymmetric spouseId (A points to B, but B doesn't point back to A)
+// draws a stray spouse connector to whoever A's spouseId happens to point
+// at — including a sibling, if ids ever got reused/corrupted. Only a
+// mutual (A<->B) link is trusted anywhere in the app; this scrubs any
+// broken half-links in every tree, every time the app loads.
+function repairSpouseLinks(){
+  let fixed=0;
+  allTrees().forEach(t=>{
+    (t.members||[]).forEach(m=>{
+      if(!m.spouseId) return;
+      const sp=(t.members||[]).find(x=>x.id===m.spouseId);
+      if(!sp || sp.spouseId!==m.id){ m.spouseId=null; fixed++; }
+    });
+  });
+  if(fixed) saveApp();
 }
 
 // ══════════════════════════════════════════════════════
@@ -182,7 +207,7 @@ function switchTree(id){
   APP.activeTreeId=id; DB=APP.trees[id];
   selId=null; viewId=null;
   saveApp(); updateTreeBadge();
-  if(curView==='tree') renderTree(); else renderList();
+  if(curView==='tree') { renderTree(); setTimeout(fitToScreen, 0); } else renderList();
 }
 function switchTreeAndClose(id){ switchTree(id); closeM('treesModal'); showToast('Switched to "'+APP.trees[id].name+'"'); }
 function newTree(name){
@@ -191,7 +216,7 @@ function newTree(name){
   APP.activeTreeId=id; DB=APP.trees[id];
   selId=null; viewId=null;
   saveApp(); updateTreeBadge();
-  if(curView==='tree') renderTree(); else renderList();
+  if(curView==='tree') { renderTree(); setTimeout(fitToScreen, 0); } else renderList();
 }
 function promptNewTree(){
   closeM('treesModal');
@@ -238,7 +263,7 @@ function confirmDeleteTree(id){
       }
       selId=null; viewId=null;
       saveApp(); updateTreeBadge();
-      if(curView==='tree') renderTree(); else renderList();
+      if(curView==='tree') { renderTree(); setTimeout(fitToScreen, 0); } else renderList();
       showToast('Tree deleted');
     }, 'Delete');
   }, 300);
@@ -289,6 +314,57 @@ function toggleCollapse(id){
   save();
   renderTree();
 }
+
+// ══════════════════════════════════════════════════════
+//  SUB-FAMILY TAGGING
+//  Tap the small button on a spouse connector to tag that couple's
+//  branch (e.g. "The Bangalore Raos" / place / nickname). Once tagged,
+//  collapsing that couple shows one wide placeholder card summarising
+//  everyone hidden underneath, instead of just an arrow.
+//  The tag itself is stored on EACH spouse's member record, keyed to
+//  their personId — and propagated via syncPersonEverywhere so it
+//  follows that person into every other tree they appear in too,
+//  exactly like the "reuse a person" feature elsewhere in the app.
+// ══════════════════════════════════════════════════════
+function openSubFamily(aId, bId){
+  const a=gm(aId), b=bId?gm(bId):null;
+  const existing=(a&&a.subFamily)||(b&&b.subFamily);
+  sf('sfCoupleA', aId); sf('sfCoupleB', bId||'');
+  sf('sfName', existing?existing.name:'');
+  sf('sfPlace', existing?existing.place:'');
+  sf('sfNick', existing?existing.nickname:'');
+  document.getElementById('sfTitle').textContent = existing ? 'Edit Sub-Family Tag' : 'Tag as Sub-Family';
+  document.getElementById('sfRemoveBtn').style.display = existing ? '' : 'none';
+  getM('subFamilyModal').show();
+}
+function saveSubFamily(){
+  const name=document.getElementById('sfName').value.trim();
+  if(!name){ showToast('Family name is required'); return; }
+  const tag={ name, place:document.getElementById('sfPlace').value.trim(), nickname:document.getElementById('sfNick').value.trim() };
+  const aId=parseInt(document.getElementById('sfCoupleA').value);
+  const bIdRaw=document.getElementById('sfCoupleB').value;
+  const bId=bIdRaw?parseInt(bIdRaw):null;
+  const a=gm(aId), b=bId?gm(bId):null;
+  if(a){ a.subFamily={...tag}; syncPersonEverywhere(a.personId, { subFamily:{...tag} }); }
+  if(b){ b.subFamily={...tag}; syncPersonEverywhere(b.personId, { subFamily:{...tag} }); }
+  save();
+  closeM('subFamilyModal');
+  if(curView==='tree') renderTree();
+  showToast('Family tagged!');
+}
+function removeSubFamily(){
+  const aId=parseInt(document.getElementById('sfCoupleA').value);
+  const bIdRaw=document.getElementById('sfCoupleB').value;
+  const bId=bIdRaw?parseInt(bIdRaw):null;
+  const a=gm(aId), b=bId?gm(bId):null;
+  if(a){ a.subFamily=null; syncPersonEverywhere(a.personId, { subFamily:null }); }
+  if(b){ b.subFamily=null; syncPersonEverywhere(b.personId, { subFamily:null }); }
+  save();
+  closeM('subFamilyModal');
+  if(curView==='tree') renderTree();
+  showToast('Tag removed');
+}
+
 function updCt(){
   const n=DB.members.length;
   const t=n+' member'+(n!==1?'s':'');
@@ -297,7 +373,106 @@ function updCt(){
 }
 const gm = id => DB.members.find(m=>m.id===id);
 const fn = m => m?(m.firstName+(m.lastName?' '+m.lastName:'')):'—';
-
+// Only a MUTUAL spouse link is trusted.
+const mSpouse = m => { const s=(m&&m.spouseId)?gm(m.spouseId):null; return (s&&s.spouseId===m.id)?s:null; };
+// The "husband" of a couple: the one who controls the family's expand/collapse.
+// (lone person → themself; if genders don't decide it, the lower id wins)
+function headOf(m, sp){
+  if(!sp) return m;
+  if(m.gender==='male' && sp.gender!=='male') return m;
+  if(sp.gender==='male' && m.gender!=='male') return sp;
+  return m.id<sp.id?m:sp;
+}
+const hasBirthFamily = m => (m.parentIds||[]).some(pid=>gm(pid));
+// Placeholder name: the sub-family tag if one exists, else "<husband's name> Family"
+const familyLabel = (head, tag) => (tag&&tag.name) ? tag.name : fn(head)+' Family';
+// Collapse keys: a number = that husband's own family (children) is collapsed;
+// 'b:<wifeId>' = that wife's birth-family side is collapsed.
+// Older data may hold a wife's id — move it to her husband.
+// Parent/child links must be two-way. The layout draws children from childIds,
+// but the collapse buttons look at parentIds — if only one side was saved, a
+// wife's birth family showed on the chart yet she got no button. Fix both ways.
+function repairParentLinks(){
+  allTrees().forEach(t=>{
+    const ms=t.members||[], byId=new Map(ms.map(m=>[m.id,m]));
+    ms.forEach(p=>{
+      (p.childIds||[]).forEach(cid=>{ const c=byId.get(cid);
+        if(c){ if(!Array.isArray(c.parentIds)) c.parentIds=[]; if(!c.parentIds.includes(p.id)) c.parentIds.push(p.id); } });
+      (p.parentIds||[]).forEach(pid=>{ const q=byId.get(pid);
+        if(q){ if(!Array.isArray(q.childIds)) q.childIds=[]; if(!q.childIds.includes(p.id)) q.childIds.push(p.id); } });
+    });
+  });
+}
+// A wife may have NO parents in this tree but be linked (same personId) to a
+// record in ANOTHER tree where her parents are recorded — that's her birth family.
+function findBirthSource(m){
+  if(!m || !m.personId) return null;
+  for(const t of allTrees()){
+    if(t.id===APP.activeTreeId) continue;
+    const ms=t.members||[];
+    const rec=ms.find(x=>x.personId===m.personId);
+    if(rec && (rec.parentIds||[]).some(pid=>ms.some(y=>y.id===pid))) return { tree:t, rec };
+  }
+  return null;
+}
+// Copies her birth-family side (parents, siblings, their families) from the
+// other tree into this one, keeping personIds so everyone stays linked.
+function importBirthFamily(id){
+  const w=gm(id), found=w&&findBirthSource(w); if(!found) return;
+  showConfirm('Bring in '+fn(w)+"'s family?", 'Copy her parents and siblings from "'+found.tree.name+'" into this tree?', ()=>{
+    const sm=found.tree.members, byId=new Map(sm.map(x=>[x.id,x])), srcW=found.rec;
+    const mutual=m=>{ const x=m.spouseId?byId.get(m.spouseId):null; return (x&&x.spouseId===m.id)?x:null; };
+    let top=srcW, guard=0;
+    for(;;){
+      const ps=(top.parentIds||[]).map(i=>byId.get(i)).filter(Boolean);
+      if(!ps.length || guard++>50) break;
+      top=ps.find(p=>(p.parentIds||[]).some(i=>byId.has(i))) || ps[0];
+    }
+    const seen=new Set([srcW.id]); const wsp=mutual(srcW); if(wsp) seen.add(wsp.id);
+    const ids=[];
+    (function col(i){
+      const m=byId.get(i); if(!m||seen.has(i)) return;
+      seen.add(i); ids.push(i);
+      const sp=mutual(m); if(sp&&!seen.has(sp.id)){ seen.add(sp.id); ids.push(sp.id); }
+      new Set([...(m.childIds||[]), ...(sp?(sp.childIds||[]):[])]).forEach(col);
+    })(top.id);
+    const map=new Map([[srcW.id, w]]);
+    ids.forEach(i=>{
+      const m=byId.get(i);
+      const ex=m.personId && DB.members.find(x=>x.personId===m.personId);
+      if(ex){ map.set(i,ex); return; }
+      const c=JSON.parse(JSON.stringify(m));
+      c.id=DB.nextId++; c.spouseId=null; c.parentIds=[]; c.childIds=[];
+      DB.members.push(c); map.set(i,c);
+    });
+    if(w.childOrder==null && srcW.childOrder!=null) w.childOrder=srcW.childOrder;
+    const link=(par,ch)=>{
+      if(!par||!ch||par===ch) return;
+      if(!ch.parentIds.includes(par.id)) ch.parentIds.push(par.id);
+      if(!par.childIds.includes(ch.id)) par.childIds.push(ch.id);
+    };
+    ids.forEach(i=>{
+      const m=byId.get(i), nm=map.get(i);
+      const sp=mutual(m), nsp=sp&&map.get(sp.id);
+      if(nsp && !nm.spouseId && !nsp.spouseId){ nm.spouseId=nsp.id; nsp.spouseId=nm.id; }
+      (m.childIds||[]).forEach(ci=>link(nm, map.get(ci)));
+    });
+    save(); renderTree();
+    showToast("Brought in "+fn(w)+"'s family");
+  }, 'Bring in');
+}
+function normalizeCollapsed(){
+  repairParentLinks();
+  allTrees().forEach(t=>{
+    const ms=t.members||[];
+    t.collapsed=[...new Set((t.collapsed||[]).map(k=>{
+      if(typeof k!=='number') return k;
+      const m=ms.find(x=>x.id===k); if(!m) return k;
+      const sp=m.spouseId?ms.find(x=>x.id===m.spouseId):null;
+      return (sp&&sp.spouseId===m.id)?headOf(m,sp).id:k;
+    }))];
+  });
+}
 // ══════════════════════════════════════════════════════
 //  PEOPLE DIRECTORY (reuse a person across different trees)
 // ══════════════════════════════════════════════════════
@@ -372,7 +547,9 @@ function setView(v){
   curView=v;
   document.getElementById('canvasWrap').style.display = v==='tree'?'':'none';
   document.getElementById('listView').style.display   = v==='list'?'block':'none';
-  if(v==='tree') renderTree(); else renderList();
+  const sw = document.getElementById('treeSearchWrap');
+  if(sw) sw.style.display = v==='tree'?'':'none';
+  if(v==='tree') { renderTree(); setTimeout(fitToScreen, 0); } else renderList();
 }
 function toggleView(){ setView(curView==='tree'?'list':'tree'); }
 
@@ -387,6 +564,7 @@ function toggleView(){ setView(curView==='tree'?'list':'tree'); }
 //  5. SVG lines connect everything.
 // ══════════════════════════════════════════════════════
 const NW=90, NH=100, HGAP=18, SGAP=14, VGAP=64, PAD=30;
+const PHW=140; // width of the collapsed "sub-family" placeholder card (wider than a normal node)
 
 function renderTree(){
   const inner  = document.getElementById('innerWrap');
@@ -394,7 +572,7 @@ function renderTree(){
   const empty  = document.getElementById('emptyState');
 
   // Remove old nodes (keep SVG)
-  Array.from(inner.querySelectorAll('.node')).forEach(n=>n.remove());
+  Array.from(inner.querySelectorAll('.node, .spouse-tag-btn')).forEach(n=>n.remove());
   svg.innerHTML='';
 
   if(DB.members.length===0){
@@ -407,12 +585,14 @@ function renderTree(){
 
   // Nodes whose children are hidden (collapsed branch)
   const collapsedSet = new Set(DB.collapsed||[]);
-  const isCollapsed = (m, sp) => collapsedSet.has(m.id) || (sp && collapsedSet.has(sp.id));
+  const isCollapsed = (m, sp) => collapsedSet.has(headOf(m, sp).id); // husband/head controls the family
+  const birthCollapsed = new Set((DB.collapsed||[]).filter(k=>typeof k==='string'&&k.startsWith('b:')).map(k=>parseInt(k.slice(2))));
 
   // ── 1. Identify root generation ──────────────────
   // Root = member whose parentIds are empty OR none of their parents exist in DB
   const allIds = new Set(DB.members.map(m=>m.id));
-  const isRoot = m => !(m.parentIds||[]).some(pid=>allIds.has(pid));
+  // A wife whose birth side is collapsed is treated as having no visible parents
+  const isRoot = m => !((m.parentIds||[]).some(pid=>allIds.has(pid)) && !birthCollapsed.has(m.id));
 
   // Collect unique root "heads" (ignore spouses of roots, they get placed alongside)
   const visited = new Set();
@@ -423,8 +603,7 @@ function renderTree(){
     // ancestry is the real root of the couple. Rendering this member as
     // another root would split/duplicate the family tree.
     const sp = m.spouseId ? gm(m.spouseId) : null;
-    const spouseHasParents = sp &&
-      (sp.parentIds || []).some(pid => allIds.has(pid));
+    const spouseHasParents = sp && !isRoot(sp);
 
     if(spouseHasParents) return false;
 
@@ -433,21 +612,77 @@ function renderTree(){
   });
 
   // ── 2. Compute layout ────────────────────────────
-  const positions = {}; // id → {x,y}
-  const lines = [];     // drawing instructions
+  const positions = {};    // id → {x,y}
+  const lines = [];        // SVG drawing instructions
+  const placeholders = []; // collapsed+tagged sub-family cards to render instead of hidden descendants
+  const spouseButtons = []; // the small 🏷️ tag/untag button sitting on each spouse connector
+
+  // ── Wives whose birth-family side is collapsed ──
+  // Everyone on her side (except her own couple + descendants) is hidden and
+  // replaced by ONE placeholder card linked to her with a dashed line.
+  function collectBlock(id, seen, out){
+    const m=gm(id); if(!m || seen.has(id)) return;
+    seen.add(id); out.push(id);
+    const sp=mSpouse(m);
+    if(sp && !seen.has(sp.id)){ seen.add(sp.id); out.push(sp.id); }
+    uniqueChildren(m, sp).forEach(cid=>collectBlock(cid, seen, out));
+  }
+  const protect = new Set();
+  const collapsedWives = DB.members.filter(w=>{
+    const sp=mSpouse(w);
+    return birthCollapsed.has(w.id) && sp && headOf(w,sp)!==w && hasBirthFamily(w);
+  });
+  collapsedWives.forEach(w=>{ protect.add(w.id); protect.add(mSpouse(w).id); });
+  const hiddenGroups = collapsedWives.map(w=>{
+    let top=w, guard=0;
+    for(;;){
+      const ps=(top.parentIds||[]).map(gm).filter(p=>p && !protect.has(p.id));
+      if(!ps.length || guard++>50) break;
+      top=ps.find(p=>hasBirthFamily(p)) || ps[0];
+    }
+    if(top===w) return null;
+    const ids=[]; collectBlock(top.id, new Set(protect), ids);
+    if(!ids.length) return null;
+    const par=(w.parentIds||[]).map(gm).filter(Boolean);
+    const father=par.find(p=>p.gender==='male') || par[0];
+    const fsp=mSpouse(father);
+    return { wId:w.id, set:new Set(ids), count:ids.length, placed:false, x:0,
+             name: familyLabel(father, father.subFamily || (fsp&&fsp.subFamily)) };
+  }).filter(Boolean);
+
+  // Counts every distinct person (children, their spouses, grandchildren...)
+  // hidden underneath a collapsed couple — used for the placeholder's
+  // "N members" label. Ignores collapse state of nested branches, since
+  // we want the TRUE total, not however much is currently expanded.
+  function countDescendants(id, seen){
+    const m=gm(id); if(!m || seen.has(id)) return 0;
+    seen.add(id);
+    let count=1;
+    const sp=(m.spouseId&&gm(m.spouseId)&&gm(m.spouseId).spouseId===m.id)?gm(m.spouseId):null; // only trust MUTUAL spouse links
+    if(sp && !seen.has(sp.id)){ seen.add(sp.id); count++; }
+    uniqueChildren(m, sp).filter(cid=>!seen.has(cid)).forEach(cid=>{ count+=countDescendants(cid, seen); });
+    return count;
+  }
+  function countHiddenDescendants(m, sp){
+    const seen=new Set([m.id]); if(sp) seen.add(sp.id);
+    let total=0;
+    uniqueChildren(m, sp).forEach(cid=>{ total+=countDescendants(cid, seen); });
+    return total;
+  }
 
   // Measure the total pixel width a subtree rooted at `id` needs
   function measure(id, seen){
     if(seen.has(id)) return NW;
     seen.add(id);
     const m=gm(id); if(!m) return NW;
-    const sp=m.spouseId?gm(m.spouseId):null;
+    const sp=(m.spouseId&&gm(m.spouseId)&&gm(m.spouseId).spouseId===m.id)?gm(m.spouseId):null; // only trust MUTUAL spouse links
     if(sp) seen.add(sp.id);
     const coupleW = NW + (sp ? SGAP+NW : 0);
-    if(isCollapsed(m, sp)) return coupleW;
-
     // Children = union of both spouses' childIds, deduplicated
     const childIds = uniqueChildren(m, sp).filter(cid=>!seen.has(cid)&&gm(cid));
+    const branchCollapsed = isCollapsed(m, sp);
+    if(branchCollapsed) return Math.max(coupleW, PHW); // we must reserve at least PHW.
+
     if(childIds.length===0) return coupleW;
 
     const childrenW = childIds.reduce((sum,cid,i)=>
@@ -460,12 +695,28 @@ function renderTree(){
     if(seen.has(id)) return null;
     seen.add(id);
     const m=gm(id); if(!m) return null;
-    const sp=m.spouseId?gm(m.spouseId):null;
+    const sp=(m.spouseId&&gm(m.spouseId)&&gm(m.spouseId).spouseId===m.id)?gm(m.spouseId):null; // only trust MUTUAL spouse links
     if(sp) seen.add(sp.id);
 
     const coupleW = NW + (sp ? SGAP+NW : 0);
+    const allKids = uniqueChildren(m, sp).filter(cid=>!seen.has(cid)&&gm(cid));
     const branchCollapsed = isCollapsed(m, sp);
-    const childIds = branchCollapsed ? [] : uniqueChildren(m, sp).filter(cid=>!seen.has(cid)&&gm(cid));
+    const tag = branchCollapsed ? { name: familyLabel(headOf(m,sp), m.subFamily || (sp && sp.subFamily)) } : null;
+    const childIds = branchCollapsed ? [] : allKids;
+
+    if(branchCollapsed) {
+      const unitW = Math.max(coupleW, PHW);
+      const phX = x + (unitW - PHW) / 2;
+      const phY = y;
+      const count = countHiddenDescendants(m, sp) + 1 + (sp?1:0);
+      placeholders.push({ key:headOf(m,sp).id, x:phX, y:phY, tag, count });
+      
+      positions[id] = { x: phX + (PHW-NW)/2, y: phY, isPlaceholder: true };
+      if(sp) positions[sp.id] = { x: phX + (PHW-NW)/2, y: phY, isPlaceholder: true };
+      
+      // We don't recurse on children because it's collapsed.
+      return x + unitW/2;
+    }
 
     // Measure children total width
     let childrenW = 0;
@@ -478,14 +729,25 @@ function renderTree(){
 
     // Centre the couple within unitW
     const coupleLeft = x + (unitW - coupleW)/2;
-    positions[id] = { x: coupleLeft, y };
-    if(sp) positions[sp.id] = { x: coupleLeft + NW + SGAP, y };
+    
+    let leftId = id;
+    let rightId = sp ? sp.id : null;
+    
+    if (sp && m.gender === 'female' && sp.gender !== 'female') {
+      leftId = sp.id;
+      rightId = id;
+    }
+    
+    positions[leftId] = { x: coupleLeft, y };
+    if(rightId) positions[rightId] = { x: coupleLeft + NW + SGAP, y };
 
     const coupleMidX = coupleLeft + coupleW/2;
 
-    // Spouse connector
+    // Spouse connector + the small tag button sitting on it
     if(sp){
-      lines.push({ type:'spouse', x1: coupleLeft+NW, x2: coupleLeft+NW+SGAP, y: y+38 });
+      const midX = coupleLeft+NW+SGAP/2, midY = y+38;
+      lines.push({ type:'spouse', x1: coupleLeft+NW, x2: coupleLeft+NW+SGAP, y: midY });
+      spouseButtons.push({ x: midX, y: midY, aId:m.id, bId:sp.id, tagged: !!(m.subFamily||sp.subFamily) });
     }
 
     // Children
@@ -524,8 +786,16 @@ function renderTree(){
   // Place all root groups side by side
   let cx = PAD;
   const placedSeen = new Set();
+  const addBirthPlaceholder = g=>{
+    g.placed=true; g.x=cx;
+    placeholders.push({ key:'b:'+g.wId, x:cx, y:PAD, tag:{name:g.name}, count:g.count });
+    cx += PHW + HGAP*2;
+  };
   roots.forEach(root=>{
     if(placedSeen.has(root.id)) return;
+    // This root belongs to a collapsed birth-family side → one placeholder instead
+    const grp=hiddenGroups.find(g=>g.set.has(root.id) || (root.spouseId && g.set.has(root.spouseId)));
+    if(grp){ if(!grp.placed) addBirthPlaceholder(grp); return; }
 
     // Snapshot of who was already placed BEFORE this root — used below to
     // detect a child that belongs to this root but got placed by an
@@ -538,7 +808,7 @@ function renderTree(){
     place(root.id, cx, PAD, placedSeen);
 
     const rootPos = positions[root.id];
-    if(rootPos && !isCollapsed(root, root.spouseId?gm(root.spouseId):null)){
+    if(rootPos && !isCollapsed(root, mSpouse(root))){
       const sp = root.spouseId ? gm(root.spouseId) : null;
       const coupleW = NW + (sp ? SGAP+NW : 0);
       const coupleMidX = rootPos.x + coupleW/2;
@@ -555,6 +825,14 @@ function renderTree(){
 
     cx += w + HGAP*2;
   });
+  hiddenGroups.forEach(g=>{ if(!g.placed) addBirthPlaceholder(g); });
+  // Dashed link from each birth-family placeholder to its wife
+  hiddenGroups.forEach(g=>{
+    const wp=positions[g.wId]; if(!wp) return;
+    const x1=g.x+PHW/2, x2=wp.x+NW/2;
+    if(wp.y>PAD+NH+10) lines.push({ type:'inlaw', x1, y1:PAD+NH, x2, y2:wp.y });
+    else lines.push({ type:'above', x1, x2, y:PAD-16, y1:PAD, y2:wp.y });
+  });
 
   // ── 3. Compute canvas size ───────────────────────
   let maxX=100, maxY=100;
@@ -562,6 +840,7 @@ function renderTree(){
     maxX=Math.max(maxX, p.x+NW+PAD);
     maxY=Math.max(maxY, p.y+NH+PAD);
   });
+  placeholders.forEach(ph=>{ maxX=Math.max(maxX, ph.x+PHW+PAD); maxY=Math.max(maxY, ph.y+NH+PAD); });
   inner.style.width  = maxX+'px';
   inner.style.height = maxY+'px';
   svg.setAttribute('width',  maxX);
@@ -571,10 +850,10 @@ function renderTree(){
   let svgContent='';
   lines.forEach(l=>{
     if(l.type==='spouse'){
-      // Horizontal line between spouse cards + dot in centre
-      const mx=(l.x1+l.x2)/2;
+      // Horizontal line between spouse cards. The little dot/tag button at
+      // its centre is now a real clickable element (see spouseButtons
+      // below), not drawn here.
       svgContent+=`<line x1="${l.x1}" y1="${l.y}" x2="${l.x2}" y2="${l.y}" stroke="#9D4EDD" stroke-width="2.5"/>`;
-      svgContent+=`<circle cx="${mx}" cy="${l.y}" r="5" fill="#9D4EDD"/>`;
     } else if(l.type==='inlaw'){
       // Dashed elbow connecting a parent couple to their child who is
       // already positioned elsewhere (placed there via marriage).
@@ -582,6 +861,10 @@ function renderTree(){
       svgContent+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x1}" y2="${midY}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
       svgContent+=`<line x1="${l.x1}" y1="${midY}" x2="${l.x2}" y2="${midY}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
       svgContent+=`<line x1="${l.x2}" y1="${midY}" x2="${l.x2}" y2="${l.y2}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
+    } else if(l.type==='above'){
+      svgContent+=`<line x1="${l.x1}" y1="${l.y1}" x2="${l.x1}" y2="${l.y}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
+      svgContent+=`<line x1="${l.x1}" y1="${l.y}" x2="${l.x2}" y2="${l.y}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
+      svgContent+=`<line x1="${l.x2}" y1="${l.y}" x2="${l.x2}" y2="${l.y2}" stroke="#9D4EDD" stroke-width="2.5" stroke-dasharray="5,4"/>`;
     } else if(l.type==='children'){
       const stemY    = l.parentBottomY + 10;
       const midY     = l.parentBottomY + VGAP/2;
@@ -610,10 +893,17 @@ function renderTree(){
 
   // ── 5. Render nodes ──────────────────────────────
   Object.entries(positions).forEach(([idStr,pos])=>{
+    if(pos.isPlaceholder) return;
     const id=parseInt(idStr);
     const m=gm(id); if(!m) return;
     const isF=m.gender==='female';
-    const hasCh=(m.childIds||[]).length>0;
+    const nsp=mSpouse(m);
+    const isHead=headOf(m,nsp)===m;
+    // Husband (or a lone parent) controls the family's children; a wife only
+    // gets a control if she has her own birth family — and it only affects that.
+    const canCollapse=isHead && (uniqueChildren(m,nsp).some(c=>gm(c)) || nsp || m.subFamily);
+    const hasBirth=!isHead && hasBirthFamily(m);
+    const extSrc=(!isHead && !hasBirth) ? findBirthSource(m) : null;
 
     const div=document.createElement('div');
     div.className='node'+(selId===id?' sel':'');
@@ -623,17 +913,57 @@ function renderTree(){
     div.onclick=()=>nodeClick(id);
     if((m.parentIds||[]).length>0) attachNodeDrag(div, id);
 
-    const collapsedHere = hasCh && collapsedSet.has(id);
+    const collapsedHere = canCollapse && collapsedSet.has(id);
+    const birthHere = hasBirth && birthCollapsed.has(id);
     div.innerHTML=`
       <div class="node-card">
-        ${hasCh?`<div class="exp-dot" title="${collapsedHere?'Expand':'Collapse'} branch" onclick="event.stopPropagation();toggleCollapse(${id})">${collapsedHere?'▶':'▼'}</div>`:''}
+        ${canCollapse?`<div class="exp-dot" title="${collapsedHere?'Expand':'Collapse'} branch" onclick="event.stopPropagation();toggleCollapse(${id})">${collapsedHere?'▶':'▼'}</div>`:''}
+        ${hasBirth?`<div class="exp-dot birth" title="${birthHere?'Expand':'Collapse'} her family side" onclick="event.stopPropagation();toggleCollapse('b:${id}')">${birthHere?'▶':'▲'}</div>`:''}
+        ${extSrc?`<div class="exp-dot birth" title="Open her family side in &quot;${(extSrc.tree.name||'').replace(/"/g,'')}&quot;" onclick="event.stopPropagation();switchTree('${extSrc.tree.id}')">▶</div>`:''}
         <div class="node-photo${isF?' f':''}">${m.photo?`<img src="${m.photo}">`:(isF?'👩':'👨')}</div>
         <div class="node-name">${fn(m)}${m.deceased?' <span title="Deceased" style="opacity:.6;">✝</span>':''}</div>
       </div>`;
     inner.appendChild(div);
   });
 
-  setTimeout(fitToScreen, 0);
+  // ── 6. Render spouse tag/untag buttons ───────────
+  spouseButtons.forEach(sb=>{
+    const btn=document.createElement('div');
+    btn.className='spouse-tag-btn'+(sb.tagged?' tagged':'');
+    btn.style.left=sb.x+'px';
+    btn.style.top =sb.y+'px';
+    btn.title=sb.tagged?'Edit sub-family tag':'Tag this couple as a sub-family';
+    btn.textContent=sb.tagged?'🏷️':'';
+    btn.onclick=(e)=>{ e.stopPropagation(); openSubFamily(sb.aId, sb.bId); };
+    inner.appendChild(btn);
+  });
+
+  // ── 7. Render collapsed sub-family placeholder cards ─────────────
+  placeholders.forEach(ph=>{
+    const div=document.createElement('div');
+    div.className='node';
+    if(typeof ph.key === 'number') div.dataset.id = ph.key;
+    div.style.left=ph.x+'px';
+    div.style.top =ph.y+'px';
+    div.style.width=PHW+'px';
+    div.onclick=()=>{
+      if(suppressNextNodeClick){ suppressNextNodeClick=false; return; }
+      toggleCollapse(ph.key);
+    };
+    
+    if(typeof ph.key === 'number') {
+      const hm = gm(ph.key);
+      if(hm && (hm.parentIds||[]).length > 0) attachNodeDrag(div, ph.key);
+    }
+
+    div.innerHTML=`
+      <div class="node-card placeholder-card">
+        <div class="ph-icon">🏷️</div>
+        <div class="ph-name">${ph.tag.name}</div>
+        <div class="ph-count">${ph.count} member${ph.count!==1?'s':''} · tap to expand</div>
+      </div>`;
+    inner.appendChild(div);
+  });
 }
 
 function sortByOrder(ids){
@@ -696,6 +1026,8 @@ function openAct(id){
     { e:'👧', l:'Add Sister',  fn:`addRel(${id},'sister')`,  dis: false },
     { e:'ℹ️', l:'View Info',   fn:`viewMember(${id})`,       dis: false },
     { e:'✏️', l:'Edit Info',   fn:`openEdit(${id})`,         dis: false },
+    { e:'🌳', l:'Family',      fn:`openFamilyTrees(${id})`,  dis: false },
+    { e:'✂️', l:'Branch off Family', fn:`promptMoveFamily(${id})`, dis: false },
     { e:'🗑️', l:'Remove',      fn:`askRm(${id})`,            dis: false },
   ];
   document.getElementById('actGrid').innerHTML=acts.map(a=>
@@ -705,6 +1037,141 @@ function openAct(id){
     </div>`
   ).join('');
   getM('actModal').show();
+}
+
+function openFamilyTrees(id){
+  const m=gm(id);
+  if(!m || !m.personId) {
+    showToast('This member is only in the current tree.');
+    return;
+  }
+  const trees = allTrees().filter(t => (t.members||[]).some(x => x.personId === m.personId));
+  if(trees.length <= 1) {
+    showToast('This member is only in the current tree.');
+    return;
+  }
+  
+  // Reuse treesModal to show just these trees
+  const html = trees.map(t=>{
+    const isActive = t.id === APP.activeTreeId;
+    const n=(t.members||[]).length;
+    return `<div class="list-item rounded-3" style="${isActive?'background:var(--pp);':''}cursor:pointer;" onclick="switchTreeAndClose('${t.id}')">
+      <span style="font-size:1.4rem">${isActive?'🌳':'📁'}</span>
+      <div style="flex:1;min-width:0;">
+        <div class="lname">${t.name}${isActive?' <span style="color:var(--p);font-size:.7rem;font-weight:700;">· current</span>':''}</div>
+        <div class="lrel">${n} member${n!==1?'s':''} · updated ${timeAgo(t.updatedAt)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  
+  document.getElementById('treesList').innerHTML = html;
+  getM('treesModal').show();
+}
+
+function collectBranch(rootId) {
+  const m = gm(rootId);
+  if(!m) return [];
+  const sp = m.spouseId ? gm(m.spouseId) : null;
+  const ids = new Set();
+  
+  function traverse(nodeId) {
+     if(ids.has(nodeId)) return;
+     ids.add(nodeId);
+     const n = gm(nodeId);
+     if(!n) return;
+     const nsp = n.spouseId ? gm(n.spouseId) : null;
+     if(nsp && !ids.has(nsp.id)) {
+        ids.add(nsp.id);
+        (nsp.childIds||[]).forEach(traverse);
+     }
+     (n.childIds||[]).forEach(traverse);
+  }
+  
+  (m.childIds||[]).forEach(traverse);
+  if(sp) (sp.childIds||[]).forEach(traverse);
+  
+  return Array.from(ids);
+}
+
+function promptMoveFamily(id) {
+   const m = gm(id);
+   if (!m) return;
+   const descIds = collectBranch(id);
+   if(descIds.length === 0) {
+      showToast(fn(m) + ' has no descendants to branch off.');
+      return;
+   }
+   
+   showConfirm('Branch off Family?', 
+      `This will move ${fn(m)}'s descendants (${descIds.length} members) to a new tree. ${fn(m)} will remain here as a branch point.`, 
+      () => moveFamilyToNewTree(id, descIds), 'Branch Off');
+}
+
+function moveFamilyToNewTree(id, descIds) {
+   const m = gm(id);
+   const sp = m.spouseId ? gm(m.spouseId) : null;
+   
+   const treeName = sp ? `${sp.firstName} & ${m.firstName} Family` : `${m.firstName}'s Family`;
+   const newId = genTreeId();
+   
+   const newMembers = [];
+   let nextLocalId = 1;
+   const idMap = new Map();
+   
+   const copyM = JSON.parse(JSON.stringify(m));
+   copyM.id = nextLocalId++;
+   copyM.parentIds = [];
+   idMap.set(m.id, copyM.id);
+   newMembers.push(copyM);
+   
+   if (sp) {
+      const copySp = JSON.parse(JSON.stringify(sp));
+      copySp.id = nextLocalId++;
+      copySp.parentIds = [];
+      idMap.set(sp.id, copySp.id);
+      newMembers.push(copySp);
+   }
+   
+   descIds.forEach(did => {
+      const d = gm(did);
+      if(!d) return;
+      const copyD = JSON.parse(JSON.stringify(d));
+      copyD.id = nextLocalId++;
+      idMap.set(d.id, copyD.id);
+      newMembers.push(copyD);
+   });
+   
+   newMembers.forEach(nm => {
+      if (nm.spouseId && idMap.has(nm.spouseId)) nm.spouseId = idMap.get(nm.spouseId);
+      else nm.spouseId = null;
+      
+      nm.parentIds = (nm.parentIds||[]).map(pid => idMap.get(pid)).filter(Boolean);
+      nm.childIds = (nm.childIds||[]).map(cid => idMap.get(cid)).filter(Boolean);
+   });
+   
+   APP.trees[newId] = {
+      id: newId,
+      name: treeName,
+      updatedAt: Date.now(),
+      nextId: nextLocalId,
+      members: newMembers,
+      collapsed: []
+   };
+   
+   const mHasParents = (m.parentIds||[]).length > 0;
+   const spHasParents = sp ? (sp.parentIds||[]).length > 0 : false;
+   const keepsRoots = mHasParents || spHasParents;
+   
+   if (keepsRoots) {
+      DB.members = DB.members.filter(x => !descIds.includes(x.id));
+      m.childIds = [];
+      if(sp) sp.childIds = [];
+   } else {
+      DB.members = DB.members.filter(x => !descIds.includes(x.id) && x.id !== m.id && (!sp || x.id !== sp.id));
+   }
+   
+   normalizeCollapsed();
+   switchTree(newId);
 }
 
 // ══════════════════════════════════════════════════════
@@ -720,14 +1187,74 @@ function openAddRoot(){
   getM('memberModal').show();
 }
 
+function branchDaughterTree(id, relType) {
+  const m = gm(id);
+  if (!m) return;
+  
+  let targetTree = allTrees().find(t => t.id !== APP.activeTreeId && (t.members||[]).some(x => x.personId === m.personId));
+  
+  if (!targetTree) {
+    const sp = m.spouseId ? gm(m.spouseId) : null;
+    const treeName = sp ? `${sp.firstName} & ${m.firstName} Family` : `${m.firstName}'s Family`;
+    const newId = genTreeId();
+    
+    const dCopy = JSON.parse(JSON.stringify(m));
+    dCopy.id = 1;
+    dCopy.parentIds = [];
+    dCopy.childIds = [];
+    dCopy.spouseId = sp ? 2 : null;
+    dCopy.childOrder = null;
+    
+    const members = [dCopy];
+    
+    if (sp) {
+      const spCopy = JSON.parse(JSON.stringify(sp));
+      spCopy.id = 2;
+      spCopy.parentIds = [];
+      spCopy.childIds = [];
+      spCopy.spouseId = 1;
+      spCopy.childOrder = null;
+      members.push(spCopy);
+    }
+    
+    APP.trees[newId] = {
+      id: newId,
+      name: treeName,
+      updatedAt: Date.now(),
+      nextId: 3,
+      members: members,
+      collapsed: []
+    };
+    targetTree = APP.trees[newId];
+  }
+
+  switchTree(targetTree.id);
+  
+  const newM = targetTree.members.find(x => x.personId === m.personId);
+  if (newM) {
+    setTimeout(() => {
+      if (relType === 'multi-child') {
+        openMultiChild(newM.id);
+      } else {
+        addRel(newM.id, 'child');
+      }
+    }, 150);
+  }
+}
+
 function addRel(targetId, relType){
+  const tg=gm(targetId);
+  if (tg && tg.gender === 'female' && (tg.parentIds||[]).some(pid=>gm(pid)) && relType === 'child') {
+    branchDaughterTree(targetId, 'child');
+    return;
+  }
+
   clrForm();
   sf('mmId',''); sf('mmRel', targetId); sf('mmRelType', relType); sf('mmPersonId','');
   showReuseBox(true);
   showQaFamilyBox(false);
   document.getElementById('mmTitle').textContent='Add '+cap(relType);
   // Sensible gender pre-fill
-  const tg=gm(targetId);
   if(relType==='mother'||relType==='sister') sf('mGender','female');
   else if(relType==='spouse') sf('mGender', tg?.gender==='male'?'female':'male');
   else sf('mGender','male');
@@ -889,6 +1416,11 @@ function addChild(parent, child){
 let mcRowCount=0;
 let mcPicked={}; // rowIdx -> full record of the existing person picked for that row
 function openMultiChild(targetId){
+  const tg=gm(targetId);
+  if (tg && tg.gender === 'female' && (tg.parentIds||[]).some(pid=>gm(pid))) {
+    branchDaughterTree(targetId, 'multi-child');
+    return;
+  }
   sf('mcTargetId', targetId);
   document.getElementById('mcRows').innerHTML='';
   mcRowCount=0; mcPicked={};
@@ -1218,6 +1750,7 @@ function importData(data, filename){
     DB=APP.trees[firstNewTreeId];
   }
   selId=null; viewId=null;
+  normalizeCollapsed();
   saveApp(); updateTreeBadge();
   setView('tree');
   showToast('Imported '+importedCount+' tree'+(importedCount!==1?'s':'')+'!');
@@ -1405,6 +1938,7 @@ function restoreFromBackup(data){
   });
   DB=APP.trees[APP.activeTreeId];
   selId=null; viewId=null;
+  normalizeCollapsed();
   saveApp(); updateTreeBadge();
   setView('tree');
   showToast('Backup restored!');
@@ -1922,7 +2456,76 @@ function reorderSiblingsByPosition(draggedId, droppedLeftX){
 }
 
 // ══════════════════════════════════════════════════════
+//  TREE SEARCH
+// ══════════════════════════════════════════════════════
+function onTreeSrchInput() {
+  const q = (document.getElementById('treeSrch').value||'').toLowerCase().trim();
+  const dd = document.getElementById('treeSrchDD');
+  if(!dd) return;
+  if(q.length < 2) { hideTreeSrchDD(); return; }
+  
+  const list = DB.members.filter(m => fn(m).toLowerCase().includes(q));
+  if(list.length === 0) {
+    dd.innerHTML = '<div class="p-3 text-muted text-center" style="font-size:.9rem;">No matches in this tree</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  
+  dd.innerHTML = list.map(m => {
+    return `<div class="list-item" style="cursor:pointer;padding:8px 12px;" onclick="locateAndHighlightMember(${m.id})">
+      <div class="list-av${m.gender==='female'?' f':''}" style="width:36px;height:36px;font-size:1.2rem;">${m.photo?`<img src="${m.photo}">`:(m.gender==='female'?'👩':'👨')}</div>
+      <div><div class="lname" style="font-size:.95rem;">${fn(m)}</div></div>
+    </div>`;
+  }).join('');
+  dd.style.display = 'block';
+}
+
+function hideTreeSrchDD() {
+  const dd = document.getElementById('treeSrchDD');
+  if(dd) dd.style.display = 'none';
+}
+
+function locateAndHighlightMember(id) {
+  hideTreeSrchDD();
+  const inp = document.getElementById('treeSrch');
+  if(inp) inp.value = '';
+  
+  const wrap = document.getElementById('canvasWrap');
+  if (!wrap) return;
+
+  let el = document.querySelector(`.node[data-id="${id}"]`);
+  
+  if (!el && DB.collapsed && DB.collapsed.length > 0) {
+    DB.collapsed = [];
+    renderTree();
+    el = document.querySelector(`.node[data-id="${id}"]`);
+    showToast('Expanded branches to find member');
+  }
+  
+  if (!el) {
+    showToast('Member not found on canvas');
+    return;
+  }
+  
+  const targetX = parseFloat(el.style.left) + 45; // NW/2
+  const targetY = parseFloat(el.style.top) + 50;  // NH/2
+  
+  panX = wrap.clientWidth/2 - targetX * zoomScale;
+  panY = wrap.clientHeight/2 - targetY * zoomScale;
+  applyTransform();
+  
+  const card = el.querySelector('.node-card');
+  if(card) {
+    card.classList.remove('highlight-blink');
+    void card.offsetWidth;
+    card.classList.add('highlight-blink');
+    setTimeout(() => card.classList.remove('highlight-blink'), 3000);
+  }
+}
+
+// ══════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════
 load();
 renderTree();
+setTimeout(fitToScreen, 0);
