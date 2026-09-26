@@ -107,6 +107,32 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);overflow:hidde
   cursor:pointer;box-shadow:0 1px 4px rgba(123,47,190,.4);transition:transform .12s,background .12s;
   z-index:5;}
 .exp-dot:hover{background:var(--p);transform:translateX(-50%) scale(1.15);}
+/* Wife's birth-family toggle: sits on TOP of her card (her parents' side) */
+.exp-dot.birth{bottom:auto;top:-9px;background:#e58ab0;}
+.exp-dot.birth:hover{background:#d0568c;}
+
+/* ── SUB-FAMILY TAGGING ───────────────────────────────────────────
+   The small button sitting on a spouse-connector line: tap to tag
+   that couple's branch as a named sub-family (e.g. "The Bangalore
+   Raos"). Untagged = a plain outlined dot; tagged = filled purple
+   with a 🏷️ icon. The tag itself is stored on each spouse's member
+   record (and synced to every tree they appear in — see
+   PEOPLE DIRECTORY / syncPersonEverywhere in app.js). */
+.spouse-tag-btn{position:absolute;width:22px;height:22px;transform:translate(-50%,-50%);
+  border-radius:50%;background:#fff;border:2px solid var(--pl);display:flex;align-items:center;
+  justify-content:center;font-size:.65rem;cursor:pointer;z-index:8;transition:transform .12s,background .12s;}
+.spouse-tag-btn:hover{transform:translate(-50%,-50%) scale(1.2);}
+.spouse-tag-btn.tagged{background:var(--p);border-color:var(--p);}
+
+/* Collapsed sub-family placeholder card — replaces an entire hidden
+   branch (descendants + their spouses) with one wide summary card.
+   Reuses .node-card's base look but is wider (see PHW in app.js) and
+   has its own inner layout for the tag icon / name / member count. */
+.placeholder-card{width:100%;padding:10px 8px;background:linear-gradient(135deg,#fff,var(--pp));
+  border-color:var(--pl);}
+.ph-icon{font-size:1.3rem;margin-bottom:2px;}
+.ph-name{font-size:.72rem;font-weight:700;color:var(--pd);line-height:1.25;word-break:break-word;}
+.ph-count{font-size:.6rem;color:#8a6bb0;margin-top:3px;}
 
 /* ── LIST VIEW ────────────────────────────────────────────────────
    Alternate, plain scrollable list of every member (searchable) —
@@ -199,3 +225,6 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);overflow:hidde
    #innerWrap and is redrawn from scratch on every renderTree() call
    (spouse links, parent→children lines, dashed "in-law" connectors). */
 #treeSvg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
+@ k e y f r a m e s   b l i n k e r   {   0 %   {   b o x - s h a d o w :   0   0   0 p x   4 p x   v a r ( - - p ) ;   t r a n s f o r m : s c a l e ( 1 ) ;   }   5 0 %   {   b o x - s h a d o w :   0   0   2 4 p x   1 0 p x   v a r ( - - p ) ;   t r a n s f o r m : s c a l e ( 1 . 1 ) ;   }   1 0 0 %   {   b o x - s h a d o w :   0   0   0 p x   4 p x   v a r ( - - p ) ;   t r a n s f o r m : s c a l e ( 1 ) ;   }   }  
+ . h i g h l i g h t - b l i n k   {   a n i m a t i o n :   b l i n k e r   0 . 6 s   l i n e a r   4 ;   z - i n d e x :   1 0 0 ;   p o s i t i o n :   r e l a t i v e ;   }  
+ 
