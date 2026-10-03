@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+.vs/
+package-lock.json

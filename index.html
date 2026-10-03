@@ -42,7 +42,8 @@
     <div class="sb-ct" id="sbCt">0 members</div>
   </div>
   <div class="sb-item" onclick="openTreesModal();closeSidebar()"><span class="sb-icon">🗂️</span>My Trees</div>
-  <div class="sb-item" onclick="setView('tree');closeSidebar()"><span class="sb-icon">🌳</span>Tree View</div>
+  <div class="sb-item" onclick="setView('tree');closeSidebar()"><span class="sb-icon">🌳</span>Hierarchy Tree</div>
+  <div class="sb-item" onclick="setView('graph');closeSidebar()"><span class="sb-icon">🕸️</span>Social Graph</div>
   <div class="sb-item" onclick="setView('list');closeSidebar()"><span class="sb-icon">📋</span>Member List</div>
   <div class="sb-item" onclick="doBackup();closeSidebar()"><span class="sb-icon">☁️</span>Backup</div>
   <div class="sb-item" onclick="doRestore();closeSidebar()"><span class="sb-icon">🔄</span>Restore</div>
@@ -58,15 +59,33 @@
     <button class="ib" onclick="openSidebar()">☰</button>
     <span class="brand" id="brandTreeName" onclick="openTreesModal()" style="cursor:pointer;">FamilyRoot</span>
   </div>
+
+  <div class="view-pills" id="viewPills">
+    <button class="view-pill active" data-view="tree" onclick="setView('tree')">🌳 Hierarchy</button>
+    <button class="view-pill" data-view="graph" onclick="setView('graph')">🕸️ Graph</button>
+    <button class="view-pill" data-view="list" onclick="setView('list')">📋 List</button>
+  </div>
   
-  <div id="treeSearchWrap" style="position:relative;flex:1;max-width:320px;margin:0 12px;">
+  <div id="treeSearchWrap" style="position:relative;flex:1;max-width:280px;margin:0 8px;">
     <input type="text" class="fc" id="treeSrch" placeholder="🔍 Find..." autocomplete="off" style="border:none;border-radius:24px;background:rgba(255,255,255,0.25);color:#fff;padding:6px 14px;font-size:0.9rem;" oninput="onTreeSrchInput()" onfocus="onTreeSrchInput()" onblur="setTimeout(hideTreeSrchDD,200)">
     <div id="treeSrchDD" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:8px;background:#fff;color:#333;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.3);max-height:280px;overflow-y:auto;overflow-x:hidden;"></div>
   </div>
 
-  <div style="display:flex;align-items:center;gap:6px;">
+    <div style="display:flex;align-items:center;gap:6px;">
     <span class="badge-ct" id="topCt">0 members</span>
-    <button class="ib" onclick="toggleView()" title="Switch view">⇄</button>
+    <button id="authUserBtn" class="btn btn-sm btn-light rounded-pill px-3 ms-1" onclick="openLoginModal()" style="font-weight:600;font-size:0.8rem;color:var(--p);">🔑 Sign In</button>
+    <div id="authUserWrap" class="dropdown" style="display:none;">
+      <button class="btn btn-sm btn-light rounded-pill px-2 py-1 dropdown-toggle" data-bs-toggle="dropdown" style="font-size:0.8rem;font-weight:600;">
+        <span id="authAvatar">👤</span> <span id="authUserName">User</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end p-2 shadow-sm" style="font-size:0.85rem;">
+        <li><div class="px-2 py-1 text-muted small" id="authUserEmail">user@example.com</div></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item rounded" href="#" onclick="openLinkMemberModal()">🔗 Link to Member Profile</a></li>
+        <li><a class="dropdown-item rounded text-danger" href="#" onclick="logoutUser()">🚪 Sign Out</a></li>
+      </ul>
+    </div>
+    <button class="ib" onclick="toggleView()" title="Cycle view">⇄</button>
     <button class="ib" onclick="openShare()">📤</button>
     <button class="ib" onclick="openAddRoot()">⋯</button>
   </div>
@@ -87,6 +106,19 @@
   </div>
 </div>
 
+<!-- SOCIAL GRAPH VIEW -->
+<div class="canvas-wrap" id="graphWrap" style="display:none;">
+  <div id="graphEmptyState" class="empty" style="display:none;">
+    <div class="empty-icon">🕸️</div>
+    <h5>Social Graph View</h5>
+    <p>No family members to display in network graph.</p>
+  </div>
+  <div id="graphZoomLayer" style="position:absolute;width:100%;height:100%;">
+    <svg id="graphSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></svg>
+    <div id="graphNodes" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+  </div>
+</div>
+
 <!-- LIST VIEW -->
 <div id="listView">
   <div class="list-search"><input id="srch" placeholder="🔍  Search members…" oninput="renderList()"></div>
@@ -99,6 +131,95 @@
   <button class="fab fab1" title="Share" onclick="openShare()">📤</button>
   <button class="fab fab2" title="Add member" onclick="openAddRoot()">➕</button>
 </div>
+
+
+<!-- LOGIN & SSO MODAL -->
+<div class="modal fade" id="loginModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;">
+      <div class="modal-header border-0 text-white" style="background:linear-gradient(135deg, var(--p), var(--pl));padding:24px;">
+        <div>
+          <h4 class="modal-title fw-bold mb-1">🌳 Welcome to FamilyRoot</h4>
+          <p class="mb-0 opacity-75 small">Sign in to access and manage your family tree</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="d-flex flex-column gap-2 mb-3">
+          <button class="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 fw-semibold" onclick="handleSSOLogin('Google')">
+            <span>🌐</span> Continue with Google
+          </button>
+          <button class="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 fw-semibold" onclick="handleSSOLogin('Microsoft')">
+            <span>💼</span> Continue with Microsoft
+          </button>
+          <button class="btn btn-outline-dark d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 fw-semibold" onclick="handleSSOLogin('Apple')">
+            <span>🍎</span> Continue with Apple
+          </button>
+        </div>
+
+        <div class="position-relative text-center my-3">
+          <hr style="border-top:1px solid #ddd;">
+          <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small fw-semibold">OR SIGN IN WITH EMAIL</span>
+        </div>
+
+        <form onsubmit="handleEmailLogin(event)">
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark small">Full Name</label>
+            <input type="text" id="loginNameInput" class="form-control rounded-3" placeholder="e.g. Vikyath Rao" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark small">Email Address</label>
+            <input type="email" id="loginEmailInput" class="form-control rounded-3" placeholder="e.g. user@example.com" required>
+          </div>
+          <button type="submit" class="btn w-100 rounded-pill py-2 text-white fw-semibold" style="background:var(--p);">
+            Sign In with Email
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINK MEMBER PROFILE MODAL -->
+<div class="modal fade" id="linkMemberModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px;overflow:hidden;">
+      <div class="modal-header border-0 text-white" style="background:linear-gradient(135deg, var(--p), var(--pl));padding:24px;">
+        <div>
+          <h4 class="modal-title fw-bold mb-1">🔗 Link Member Profile</h4>
+          <p class="mb-0 opacity-75 small">Connect your account email to your member profile card</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="alert alert-purple bg-light border-0 rounded-3 mb-3 d-flex align-items-center gap-2">
+          <span class="fs-4">📧</span>
+          <div class="small">
+            Logged in as: <strong id="linkUserEmailBadge">user@example.com</strong>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold text-dark small">Select Family Tree</label>
+          <select id="linkTreeSel" class="form-select rounded-3" onchange="onLinkMemberSearchInput()"></select>
+        </div>
+
+        <div class="mb-3 position-relative">
+          <label class="form-label fw-semibold text-dark small">Type & Select Your Member Profile</label>
+          <input type="text" id="linkMemberInput" class="form-control rounded-3" placeholder="Type name to search members..." autocomplete="off" oninput="onLinkMemberSearchInput()" onfocus="onLinkMemberSearchInput()" onblur="setTimeout(hideLinkMemberSuggestions, 200)">
+          <input type="hidden" id="linkMemberIdHidden">
+          <div id="linkMemberSuggestionsDD" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#fff;color:#333;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);max-height:240px;overflow-y:auto;z-index:1050;"></div>
+        </div>
+
+        <button type="button" class="btn w-100 rounded-pill py-2 text-white fw-semibold" style="background:var(--p);" onclick="confirmLinkMember()">
+          Save & Link Profile
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 <!-- TOAST -->
 <div class="toast-f"><div class="toast-m" id="toastEl"></div></div>
@@ -382,7 +503,8 @@
         </div>
       </div>
       <div class="modal-footer border-0 pt-0 d-flex align-items-center">
-        <button class="btn btn-sm btn-link text-danger p-0" id="sfRemoveBtn" style="display:none;" onclick="removeSubFamily()">Remove Tag</button>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" id="sfViewSubTreeBtn" onclick="viewSubTreeFromModal()">👁️ View Sub-Tree</button>
+        <button class="btn btn-sm btn-link text-danger p-0 ms-2" id="sfRemoveBtn" style="display:none;" onclick="removeSubFamily()">Remove Tag</button>
         <div style="margin-left:auto;display:flex;gap:8px;">
           <button class="btn btn-light" onclick="closeM('subFamilyModal')">Cancel</button>
           <button class="btn-p" onclick="saveSubFamily()">Save</button>
@@ -405,14 +527,32 @@
   </div>
 </div>
 
-<!--
-  Third-party libraries (see the note at the top of <head> for what each does).
-  Order matters: Bootstrap must load before app.js calls bootstrap.Modal(...).
--->
+<!-- Third-party libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
-<script src="app.js"></script>
+
+<!-- Application scripts (loaded in dependency order) -->
+<script src="/js/data.js"></script>              <!-- State, member shape, save/load -->
+<script src="/js/trees.js"></script>             <!-- Tree CRUD: create/switch/rename/duplicate/delete -->
+<script src="/js/collapse.js"></script>          <!-- Collapse/expand, sub-family tags, daughter branching -->
+<script src="/js/person.js"></script>            <!-- People directory & cross-tree reuse -->
+<script src="/js/views.js"></script>             <!-- Tree vs list view switching -->
+<script src="/js/layout.js"></script>            <!-- Tree layout engine & SVG connectors -->
+<script src="/js/list.js"></script>              <!-- List view rendering -->
+<script src="/js/actions.js"></script>           <!-- Node action menu & branch-off -->
+<script src="/js/member-form.js"></script>       <!-- Add/edit member forms -->
+<script src="/js/multi-child.js"></script>       <!-- Add multiple children modal -->
+<script src="/js/view-member.js"></script>       <!-- Profile view & photo gallery -->
+<script src="/js/remove.js"></script>            <!-- Remove member confirmation -->
+<script src="/js/export.js"></script>            <!-- Share, export, backup/restore -->
+<script src="/js/ui-utils.js"></script>          <!-- Modals, sidebar, quick-add, float dropdown -->
+<script src="/js/pan-zoom.js"></script>          <!-- Canvas pan, zoom & touch gestures -->
+<script src="/js/drag-reorder.js"></script>      <!-- Drag to reorder siblings -->
+<script src="/js/search.js"></script>            <!-- Universal cross-tree search -->
+<script src="/js/graph.js"></script>             <!-- Interactive Social Graph Engine -->
+<script src="/js/auth.js"></script>
+<script src="/js/boot.js"></script>              <!-- Application initialization -->
 </body>
 </html>

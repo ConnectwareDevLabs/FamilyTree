@@ -177,38 +177,3 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); overfl
   z-index: 100;
   position: relative;
 }
-
-/* ── VIEW SWITCHER PILLS ─────────────────────────────────────────── */
-.view-pills { display: flex; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 2px; margin: 0 8px; }
-.view-pill { background: none; border: none; color: rgba(255,255,255,0.75); padding: 4px 12px; font-size: 0.8rem; font-weight: 600; border-radius: 16px; cursor: pointer; transition: all 0.15s; }
-.view-pill.active { background: #fff; color: var(--p); box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-.view-pill:hover:not(.active) { color: #fff; background: rgba(255,255,255,0.1); }
-
-/* ── SOCIAL GRAPH VIEW ───────────────────────────────────────────── */
-.graph-node { position: absolute; width: 90px; background: #fff; border: 2.5px solid var(--pl); border-radius: 16px; padding: 8px 6px 6px; text-align: center; box-shadow: 0 4px 14px rgba(123, 47, 190, 0.18); cursor: grab; user-select: none; transition: box-shadow 0.15s; z-index: 10; }
-.graph-node.f { border-color: #f472b6; }
-.graph-node.sel { border-color: var(--p); box-shadow: 0 0 0 4px rgba(123, 47, 190, 0.3); }
-.graph-node.dragging { cursor: grabbing; z-index: 50; box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
-.graph-node-avatar { width: 44px; height: 44px; border-radius: 50%; background: #ede7f6; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; overflow: hidden; border: 2px solid #d4bbf5; }
-.graph-node-avatar.f { background: #fce4ec; border-color: #fbcfe8; }
-.graph-node-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.graph-node-name { font-size: 0.68rem; font-weight: 700; color: #222; word-break: break-word; line-height: 1.2; min-height: 16px; }
-.graph-node-badges { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
-.graph-badge { font-size: 0.6rem; background: var(--pp); color: var(--p); padding: 1px 5px; border-radius: 10px; font-weight: 700; }
-
-
-/* ── SOCIAL GRAPH VIEW (Full Screen Canvas) ────────────────────── */
-#graphWrap { position: fixed; top: 52px; left: 0; right: 0; bottom: 0; overflow: hidden; background: var(--bg); touch-action: none; cursor: grab; }
-#graphZoomLayer { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; width: 100%; height: 100%; }
-#graphSvg { position: absolute; top: 0; left: 0; width: 12000px; height: 12000px; overflow: visible; pointer-events: none; }
-#graphNodes { position: absolute; top: 0; left: 0; width: 12000px; height: 12000px; }
-.graph-node { position: absolute; width: 90px; background: #fff; border: 2.5px solid var(--pl); border-radius: 16px; padding: 8px 6px 6px; text-align: center; box-shadow: 0 4px 14px rgba(123, 47, 190, 0.18); cursor: grab; user-select: none; transition: box-shadow 0.15s; z-index: 10; }
-.graph-node.f { border-color: #f472b6; }
-.graph-node.sel { border-color: var(--p); box-shadow: 0 0 0 4px rgba(123, 47, 190, 0.3); }
-.graph-node.dragging { cursor: grabbing; z-index: 50; box-shadow: 0 10px 24px rgba(0,0,0,0.3); }
-.graph-node-avatar { width: 44px; height: 44px; border-radius: 50%; background: #ede7f6; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; overflow: hidden; border: 2px solid #d4bbf5; }
-.graph-node-avatar.f { background: #fce4ec; border-color: #fbcfe8; }
-.graph-node-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.graph-node-name { font-size: 0.68rem; font-weight: 700; color: #222; word-break: break-word; line-height: 1.2; min-height: 16px; }
-.graph-node-badges { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
-.graph-badge { font-size: 0.6rem; background: var(--pp); color: var(--p); padding: 1px 5px; border-radius: 10px; font-weight: 700; }
