@@ -1,22 +1,15 @@
 // ══════════════════════════════════════════════════════
-//  BOOT
-// ══════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════
-//  PAN & ZOOM (infinite canvas)
-//  The tree canvas is no longer bound to a native scrollbar — it's a
-//  freely draggable/zoomable layer, so you can pan around and zoom in
-//  or out without hitting a hard edge. The ⛶ button snaps back to a
-//  view that fits the whole tree on screen.
+//  PAN & ZOOM (infinite canvas — Phone & Desktop Engine)
 // ══════════════════════════════════════════════════════
 let zoomScale=1, panX=0, panY=0;
 let isPanning=false, panMoved=false, panStartX=0, panStartY=0, panOrigX=0, panOrigY=0;
-let pinchStartDist=0, pinchStartScale=1;
+let pinchStartDist=0, pinchStartScale=1, pinchCenter={x:0, y:0};
 
 function applyTransform(){
   const zl=document.getElementById('zoomLayer');
   if(zl) zl.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoomScale+')';
 }
-function clampZoom(z){ return Math.min(2.5, Math.max(0.2, z)); }
+function clampZoom(z){ return Math.min(3.0, Math.max(0.15, z)); }
 
 function fitToScreen(){
   if (typeof curView !== 'undefined' && curView === 'graph') { fitGraphToScreen(); return; }
@@ -59,8 +52,17 @@ function fitToScreen(){
     if(panMoved){ e.stopPropagation(); e.preventDefault(); panMoved=false; }
   }, true);
 
-  // Touch drag + pinch zoom
+  function touchDist(t){
+    const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+  function touchMid(t){
+    return { x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 };
+  }
+
+  // Touch drag + pinch zoom (Mobile phone support)
   wrap.addEventListener('touchstart', e=>{
+    if(e.target.closest('.node-photo, .node-name, .exp-dot, .btn')) return;
     if(e.touches.length===1){
       isPanning=true; panMoved=false;
       panStartX=e.touches[0].clientX; panStartY=e.touches[0].clientY;
@@ -69,31 +71,55 @@ function fitToScreen(){
       isPanning=false;
       pinchStartDist=touchDist(e.touches);
       pinchStartScale=zoomScale;
+      pinchCenter=touchMid(e.touches);
     }
-  }, {passive:true});
+  }, {passive:false});
 
   wrap.addEventListener('touchmove', e=>{
     if(e.touches.length===1 && isPanning){
+      if(e.cancelable) e.preventDefault();
       const dx=e.touches[0].clientX-panStartX, dy=e.touches[0].clientY-panStartY;
-      if(Math.abs(dx)>6||Math.abs(dy)>6) panMoved=true;
+      if(Math.abs(dx)>4||Math.abs(dy)>4) panMoved=true;
       if(panMoved){ panX=panOrigX+dx; panY=panOrigY+dy; applyTransform(); }
     } else if(e.touches.length===2){
+      if(e.cancelable) e.preventDefault();
       const dist=touchDist(e.touches);
-      if(pinchStartDist>0){ zoomScale=clampZoom(pinchStartScale*(dist/pinchStartDist)); applyTransform(); }
+      if(pinchStartDist>0){
+        const mid=touchMid(e.touches);
+        const newZoom=clampZoom(pinchStartScale*(dist/pinchStartDist));
+        const factor=newZoom/zoomScale;
+        panX = mid.x - factor * (mid.x - panX);
+        panY = mid.y - factor * (mid.y - panY);
+        zoomScale = newZoom;
+        applyTransform();
+      }
     }
-  }, {passive:true});
+  }, {passive:false});
 
-  wrap.addEventListener('touchend', ()=>{ isPanning=false; });
-
-  function touchDist(t){ const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
+  wrap.addEventListener('touchend', e=>{
+    if(e.touches.length===1){
+      isPanning=true; panMoved=false;
+      panStartX=e.touches[0].clientX; panStartY=e.touches[0].clientY;
+      panOrigX=panX; panOrigY=panY;
+    } else {
+      isPanning=false;
+    }
+  });
 
   // Mouse wheel / trackpad zoom (desktop)
   wrap.addEventListener('wheel', e=>{
     e.preventDefault();
-    zoomScale=clampZoom(zoomScale + (e.deltaY>0?-0.08:0.08));
+    const rect = wrap.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.08 : 0.92;
+    const newZoom = clampZoom(zoomScale * factor);
+    const ratio = newZoom / zoomScale;
+    panX = mouseX - ratio * (mouseX - panX);
+    panY = mouseY - ratio * (mouseY - panY);
+    zoomScale = newZoom;
     applyTransform();
   }, {passive:false});
 
   window.addEventListener('resize', ()=>{ if(curView==='tree') fitToScreen(); });
 })();
-

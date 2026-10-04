@@ -340,6 +340,7 @@ function initGraphPanZoom() {
   wrap._hasPanZoom = true;
 
   let isPan = false, startX = 0, startY = 0;
+  let pinchStartDist = 0, pinchStartScale = 1;
 
   wrap.addEventListener('mousedown', e => {
     if (e.target.closest('.graph-node')) return;
@@ -363,10 +364,70 @@ function initGraphPanZoom() {
     }
   });
 
+  function touchDist(t) {
+    const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function touchMid(t) {
+    return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
+  }
+
+  // Touch drag + pinch zoom on Social Graph View (Phone support)
+  wrap.addEventListener('touchstart', e => {
+    if (e.target.closest('.graph-node')) return;
+    if (e.touches.length === 1) {
+      isPan = true;
+      startX = e.touches[0].clientX - graphPanX;
+      startY = e.touches[0].clientY - graphPanY;
+    } else if (e.touches.length === 2) {
+      isPan = false;
+      pinchStartDist = touchDist(e.touches);
+      pinchStartScale = graphZoom;
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', e => {
+    if (e.target.closest('.graph-node') && graphDraggingId) return;
+    if (e.touches.length === 1 && isPan) {
+      if (e.cancelable) e.preventDefault();
+      graphPanX = e.touches[0].clientX - startX;
+      graphPanY = e.touches[0].clientY - startY;
+      applyGraphTransform();
+    } else if (e.touches.length === 2) {
+      if (e.cancelable) e.preventDefault();
+      const dist = touchDist(e.touches);
+      if (pinchStartDist > 0) {
+        const mid = touchMid(e.touches);
+        const newZoom = Math.min(Math.max(pinchStartScale * (dist / pinchStartDist), 0.15), 3.0);
+        const factor = newZoom / graphZoom;
+        graphPanX = mid.x - factor * (mid.x - graphPanX);
+        graphPanY = mid.y - factor * (mid.y - graphPanY);
+        graphZoom = newZoom;
+        applyGraphTransform();
+      }
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', e => {
+    if (e.touches.length === 1) {
+      isPan = true;
+      startX = e.touches[0].clientX - graphPanX;
+      startY = e.touches[0].clientY - graphPanY;
+    } else {
+      isPan = false;
+    }
+  });
+
   wrap.addEventListener('wheel', e => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newZoom = Math.min(Math.max(graphZoom * zoomFactor, 0.3), 3.0);
+    const rect = wrap.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.08 : 0.92;
+    const newZoom = Math.min(Math.max(graphZoom * factor, 0.15), 3.0);
+    const ratio = newZoom / graphZoom;
+    graphPanX = mouseX - ratio * (mouseX - graphPanX);
+    graphPanY = mouseY - ratio * (mouseY - graphPanY);
     graphZoom = newZoom;
     applyGraphTransform();
   }, { passive: false });
