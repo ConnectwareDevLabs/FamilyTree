@@ -4,6 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-static.js"
+    "dev": "vite",
+    "build": "node scripts/build-static.js",
+    "preview": "vite preview",
+    "worker:dev": "npm run build && wrangler dev",
+    "worker:deploy": "npm run build && wrangler deploy",
+    "worker:deploy:dev": "npm run build && wrangler deploy --env dev",
+    "d1:migrate": "wrangler d1 execute familytree-db --local --file=./migrations/0001_initial_schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8",
+    "wrangler": "^3.78.1"
   }
 }

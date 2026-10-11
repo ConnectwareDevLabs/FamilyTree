@@ -715,8 +715,11 @@ function updateSubTreeBanner(title) {
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'subTreeBanner';
-    banner.style.cssText = 'position:fixed;top:56px;left:0;right:0;z-index:999;background:linear-gradient(90deg,#7b2fbe,#9d4edd);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;align-items:center;justify-content:space-between;padding:8px 16px;font-size:0.9rem;';
+    banner.style.cssText = 'position:fixed;top:52px;left:0;right:0;z-index:999;background:linear-gradient(90deg,var(--p),var(--pl));color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;align-items:center;justify-content:space-between;padding:8px 16px;font-size:0.9rem;';
     document.body.appendChild(banner);
+  } else {
+    banner.style.background = 'linear-gradient(90deg,var(--p),var(--pl))';
+    banner.style.top = '52px';
   }
 
   if (title) {
@@ -725,7 +728,7 @@ function updateSubTreeBanner(title) {
         <span style="font-size:1.1rem;">👁️</span>
         <span>Viewing isolated sub-tree: <strong>${title}</strong></span>
       </div>
-      <button class="btn btn-sm btn-light rounded-pill px-3 fw-semibold text-primary" onclick="clearSubTree()">Exit Sub-Tree View ✕</button>
+      <button class="btn btn-sm btn-light rounded-pill px-3 fw-semibold" style="color:var(--p);font-weight:700;" onclick="clearSubTree()">Exit Sub-Tree View ✕</button>
     `;
     banner.style.display = 'flex';
   } else {
@@ -745,15 +748,17 @@ function setView(v){
   const graphWrap  = document.getElementById('graphWrap');
   const listView   = document.getElementById('listView');
   const treeSrch   = document.getElementById('treeSearchWrap');
-
   if(canvasWrap) canvasWrap.style.display = (v==='tree') ? 'block' : 'none';
   if(graphWrap)  graphWrap.style.display  = (v==='graph') ? 'block' : 'none';
   if(listView)   listView.style.display   = (v==='list') ? 'block' : 'none';
   if(treeSrch)   treeSrch.style.display   = (v==='tree' || v==='graph') ? 'block' : 'none';
 
-  const pills = document.querySelectorAll('.view-pill');
-  pills.forEach(p => {
-    p.classList.toggle('active', p.dataset.view === v);
+  const viewSel = document.getElementById('viewSelectMobile') || document.getElementById('viewSelect');
+  if(viewSel) viewSel.value = v;
+
+  // Synchronize desktop & tablet tab view pills
+  document.querySelectorAll('.view-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-view') === v);
   });
 
   if(v==='tree') {
@@ -2627,9 +2632,123 @@ const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 let tTimer;
 function showToast(msg){
   const el=document.getElementById('toastEl');
+  if(!el) return;
   el.textContent=msg; el.classList.add('show');
   clearTimeout(tTimer); tTimer=setTimeout(()=>el.classList.remove('show'),2500);
 }
+
+function openAboutModal(){
+  getM('aboutModal').show();
+}
+
+function openPrivacyModal(){
+  getM('privacyModal').show();
+}
+
+function openThemeModal(){
+  getM('themeModal').show();
+}
+
+function setTheme(name){
+  document.documentElement.setAttribute('data-theme', name);
+  localStorage.setItem('familyroot_theme', name);
+  showToast('Theme changed to ' + cap(name));
+}
+
+function initTheme(){
+  const saved = localStorage.getItem('familyroot_theme') || 'purple';
+  document.documentElement.setAttribute('data-theme', saved);
+}
+
+function initCookieConsent(){
+  const consent = localStorage.getItem('familyroot_cookie_consent');
+  const banner = document.getElementById('cookieConsentBanner');
+  if(!banner) return;
+  if(!consent){
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function reopenCookieBanner(){
+  const banner = document.getElementById('cookieConsentBanner');
+  if(banner) banner.style.display = 'block';
+}
+
+function acceptCookieConsent(type){
+  localStorage.setItem('familyroot_cookie_consent', type || 'all');
+  const banner = document.getElementById('cookieConsentBanner');
+  if(banner) banner.style.display = 'none';
+  showToast('Cookie & Privacy preference saved!');
+}
+
+function toggleBottomAd(){
+  const el = document.getElementById('bottomAdBanner');
+  if(!el) return;
+  el.classList.toggle('minimized');
+}
+
+async function initVisitorCounter(){
+  const numEl = document.getElementById('visitorCountNum');
+  const badge = document.getElementById('visitorCountBadge');
+
+  // Immediately display cached count to prevent any blank state
+  let currentCnt = parseInt(localStorage.getItem('familyroot_visitors') || '1285');
+  if(numEl) numEl.textContent = currentCnt.toLocaleString();
+  if(badge) badge.textContent = currentCnt.toLocaleString();
+
+  // Read counter mode (defaults to Option B: daily_unique)
+  const mode = localStorage.getItem('familyroot_visitor_counter_mode') || 'daily_unique';
+  let isNewHit = false;
+
+  if (mode === 'daily_unique') {
+    // Option B: 1 hit per visitor per calendar day (24 hours)
+    const today = new Date().toISOString().slice(0, 10);
+    const lastVisit = localStorage.getItem('familyroot_last_visit_date');
+    if (lastVisit !== today) {
+      isNewHit = true;
+      localStorage.setItem('familyroot_last_visit_date', today);
+    }
+  } else if (mode === 'session_unique') {
+    // 1 hit per 30-minute session
+    const now = Date.now();
+    const lastSession = parseInt(sessionStorage.getItem('familyroot_session_time') || '0');
+    if (now - lastSession > 30 * 60 * 1000) {
+      isNewHit = true;
+      sessionStorage.setItem('familyroot_session_time', now.toString());
+    }
+  } else {
+    // Option A: Every reload / hit
+    isNewHit = true;
+  }
+
+  // If this visit qualifies as a new hit, increment local fallback count
+  if (isNewHit) {
+    currentCnt += 1;
+    localStorage.setItem('familyroot_visitors', currentCnt.toString());
+    if(numEl) numEl.textContent = currentCnt.toLocaleString();
+    if(badge) badge.textContent = currentCnt.toLocaleString();
+  }
+
+  // Sync with Cloudflare backend API
+  const endpoint = isNewHit ? '/api/visitor-count?hit=1' : '/api/visitor-count';
+  try {
+    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+    if(res.ok){
+      const data = await res.json();
+      if(data && typeof data.visitors === 'number'){
+        localStorage.setItem('familyroot_visitors', data.visitors.toString());
+        if(numEl) numEl.textContent = data.visitors.toLocaleString();
+        if(badge) badge.textContent = data.visitors.toLocaleString();
+      }
+    }
+  } catch(e) {
+    // Backend worker offline or local dev fallback already displayed
+  }
+}
+
+
 
 
 
@@ -3834,7 +3953,10 @@ function logoutUser() {
 // ══════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════
+initTheme();
 load(); initAuth();
 renderTree();
 setTimeout(fitToScreen, 0);
+initVisitorCounter();
+initCookieConsent();
 

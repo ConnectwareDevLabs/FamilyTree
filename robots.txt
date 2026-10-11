@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://familytree.connectware.in/sitemap.xml

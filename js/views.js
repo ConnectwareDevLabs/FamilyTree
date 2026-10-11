@@ -77,8 +77,11 @@ function updateSubTreeBanner(title) {
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'subTreeBanner';
-    banner.style.cssText = 'position:fixed;top:56px;left:0;right:0;z-index:999;background:linear-gradient(90deg,#7b2fbe,#9d4edd);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;align-items:center;justify-content:space-between;padding:8px 16px;font-size:0.9rem;';
+    banner.style.cssText = 'position:fixed;top:52px;left:0;right:0;z-index:999;background:linear-gradient(90deg,var(--p),var(--pl));color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;align-items:center;justify-content:space-between;padding:8px 16px;font-size:0.9rem;';
     document.body.appendChild(banner);
+  } else {
+    banner.style.background = 'linear-gradient(90deg,var(--p),var(--pl))';
+    banner.style.top = '52px';
   }
 
   if (title) {
@@ -87,7 +90,7 @@ function updateSubTreeBanner(title) {
         <span style="font-size:1.1rem;">👁️</span>
         <span>Viewing isolated sub-tree: <strong>${title}</strong></span>
       </div>
-      <button class="btn btn-sm btn-light rounded-pill px-3 fw-semibold text-primary" onclick="clearSubTree()">Exit Sub-Tree View ✕</button>
+      <button class="btn btn-sm btn-light rounded-pill px-3 fw-semibold" style="color:var(--p);font-weight:700;" onclick="clearSubTree()">Exit Sub-Tree View ✕</button>
     `;
     banner.style.display = 'flex';
   } else {
@@ -107,15 +110,17 @@ function setView(v){
   const graphWrap  = document.getElementById('graphWrap');
   const listView   = document.getElementById('listView');
   const treeSrch   = document.getElementById('treeSearchWrap');
-
   if(canvasWrap) canvasWrap.style.display = (v==='tree') ? 'block' : 'none';
   if(graphWrap)  graphWrap.style.display  = (v==='graph') ? 'block' : 'none';
   if(listView)   listView.style.display   = (v==='list') ? 'block' : 'none';
   if(treeSrch)   treeSrch.style.display   = (v==='tree' || v==='graph') ? 'block' : 'none';
 
-  const pills = document.querySelectorAll('.view-pill');
-  pills.forEach(p => {
-    p.classList.toggle('active', p.dataset.view === v);
+  const viewSel = document.getElementById('viewSelectMobile') || document.getElementById('viewSelect');
+  if(viewSel) viewSel.value = v;
+
+  // Synchronize desktop & tablet tab view pills
+  document.querySelectorAll('.view-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-view') === v);
   });
 
   if(v==='tree') {

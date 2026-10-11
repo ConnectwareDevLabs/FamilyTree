@@ -3,3 +3,4 @@ dist/
 .wrangler/
 .vs/
 package-lock.json
+samplejs/

@@ -329,7 +329,121 @@ const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 let tTimer;
 function showToast(msg){
   const el=document.getElementById('toastEl');
+  if(!el) return;
   el.textContent=msg; el.classList.add('show');
   clearTimeout(tTimer); tTimer=setTimeout(()=>el.classList.remove('show'),2500);
 }
+
+function openAboutModal(){
+  getM('aboutModal').show();
+}
+
+function openPrivacyModal(){
+  getM('privacyModal').show();
+}
+
+function openThemeModal(){
+  getM('themeModal').show();
+}
+
+function setTheme(name){
+  document.documentElement.setAttribute('data-theme', name);
+  localStorage.setItem('familyroot_theme', name);
+  showToast('Theme changed to ' + cap(name));
+}
+
+function initTheme(){
+  const saved = localStorage.getItem('familyroot_theme') || 'purple';
+  document.documentElement.setAttribute('data-theme', saved);
+}
+
+function initCookieConsent(){
+  const consent = localStorage.getItem('familyroot_cookie_consent');
+  const banner = document.getElementById('cookieConsentBanner');
+  if(!banner) return;
+  if(!consent){
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function reopenCookieBanner(){
+  const banner = document.getElementById('cookieConsentBanner');
+  if(banner) banner.style.display = 'block';
+}
+
+function acceptCookieConsent(type){
+  localStorage.setItem('familyroot_cookie_consent', type || 'all');
+  const banner = document.getElementById('cookieConsentBanner');
+  if(banner) banner.style.display = 'none';
+  showToast('Cookie & Privacy preference saved!');
+}
+
+function toggleBottomAd(){
+  const el = document.getElementById('bottomAdBanner');
+  if(!el) return;
+  el.classList.toggle('minimized');
+}
+
+async function initVisitorCounter(){
+  const numEl = document.getElementById('visitorCountNum');
+  const badge = document.getElementById('visitorCountBadge');
+
+  // Immediately display cached count to prevent any blank state
+  let currentCnt = parseInt(localStorage.getItem('familyroot_visitors') || '1285');
+  if(numEl) numEl.textContent = currentCnt.toLocaleString();
+  if(badge) badge.textContent = currentCnt.toLocaleString();
+
+  // Read counter mode (defaults to Option B: daily_unique)
+  const mode = localStorage.getItem('familyroot_visitor_counter_mode') || 'daily_unique';
+  let isNewHit = false;
+
+  if (mode === 'daily_unique') {
+    // Option B: 1 hit per visitor per calendar day (24 hours)
+    const today = new Date().toISOString().slice(0, 10);
+    const lastVisit = localStorage.getItem('familyroot_last_visit_date');
+    if (lastVisit !== today) {
+      isNewHit = true;
+      localStorage.setItem('familyroot_last_visit_date', today);
+    }
+  } else if (mode === 'session_unique') {
+    // 1 hit per 30-minute session
+    const now = Date.now();
+    const lastSession = parseInt(sessionStorage.getItem('familyroot_session_time') || '0');
+    if (now - lastSession > 30 * 60 * 1000) {
+      isNewHit = true;
+      sessionStorage.setItem('familyroot_session_time', now.toString());
+    }
+  } else {
+    // Option A: Every reload / hit
+    isNewHit = true;
+  }
+
+  // If this visit qualifies as a new hit, increment local fallback count
+  if (isNewHit) {
+    currentCnt += 1;
+    localStorage.setItem('familyroot_visitors', currentCnt.toString());
+    if(numEl) numEl.textContent = currentCnt.toLocaleString();
+    if(badge) badge.textContent = currentCnt.toLocaleString();
+  }
+
+  // Sync with Cloudflare backend API
+  const endpoint = isNewHit ? '/api/visitor-count?hit=1' : '/api/visitor-count';
+  try {
+    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+    if(res.ok){
+      const data = await res.json();
+      if(data && typeof data.visitors === 'number'){
+        localStorage.setItem('familyroot_visitors', data.visitors.toString());
+        if(numEl) numEl.textContent = data.visitors.toLocaleString();
+        if(badge) badge.textContent = data.visitors.toLocaleString();
+      }
+    }
+  } catch(e) {
+    // Backend worker offline or local dev fallback already displayed
+  }
+}
+
+
 

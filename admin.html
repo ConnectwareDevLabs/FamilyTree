@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyRoot — Admin Panel & Settings</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  :root {
+    --p: #7B2FBE;
+    --pl: #9D4EDD;
+    --pp: #EDE7F6;
+    --pd: #5A189A;
+    --bg: #F8F9FD;
+  }
+  body {
+    background: var(--bg);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #2D3748;
+    min-height: 100vh;
+  }
+  .admin-topbar {
+    background: linear-gradient(135deg, var(--p), var(--pd));
+    color: #fff;
+    padding: 14px 24px;
+    box-shadow: 0 4px 16px rgba(90, 24, 154, 0.25);
+  }
+  .card-admin {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .card-admin-header {
+    background: #FAFAFC;
+    border-bottom: 1px solid #EDF2F7;
+    padding: 16px 20px;
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--pd);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-admin-body {
+    padding: 20px;
+  }
+  .stat-kpi {
+    background: linear-gradient(135deg, #FAF5FF, #F3E8FF);
+    border: 1.5px solid #E9D5FF;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-kpi-num {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: var(--p);
+    line-height: 1.1;
+  }
+  .stat-kpi-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--pd);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+  .mode-option {
+    border: 1.5px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 10px;
+  }
+  .mode-option:hover {
+    border-color: var(--pl);
+    background: #FAF5FF;
+  }
+  .mode-option.active {
+    border-color: var(--p);
+    background: #FAF5FF;
+    box-shadow: 0 0 0 2px rgba(123, 47, 190, 0.15);
+  }
+  .mode-option-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1A202C;
+  }
+  .mode-option-desc {
+    font-size: 0.82rem;
+    color: #718096;
+    margin-top: 2px;
+  }
+  .btn-p {
+    background: var(--p);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .btn-p:hover {
+    background: var(--pd);
+    color: #fff;
+  }
+  .badge-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- ADMIN TOPBAR -->
+<div class="admin-topbar d-flex justify-content-between align-items-center">
+  <div class="d-flex align-items-center gap-2">
+    <span style="font-size:1.6rem;">🌳</span>
+    <div>
+      <h5 class="mb-0 fw-bold">FamilyRoot Admin</h5>
+      <small style="opacity:0.85; font-size:0.75rem;">Site Settings & Traffic Control Panel</small>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <span class="badge bg-light text-dark rounded-pill px-3 py-2 fw-semibold d-none d-sm-inline-block" id="adminVisitorBadge">
+      👁️ Visitors: <strong id="topVisitorNum">1,285</strong>
+    </span>
+    <a href="/" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-semibold">🌳 Return to Family Tree</a>
+  </div>
+</div>
+
+<div class="container py-4" style="max-width:1050px;">
+
+  <!-- PIN LOCK PROMPT (If locked) -->
+  <div id="pinLockSection" class="card-admin text-center p-5 shadow-sm" style="display:none; max-width:480px; margin:40px auto;">
+    <div style="font-size:3rem; margin-bottom:12px;">🔒</div>
+    <h4 class="fw-bold text-dark mb-2">Admin Authentication</h4>
+    <p class="text-muted small mb-4">Please enter your Admin PIN to access configuration settings.</p>
+    <div class="mb-3">
+      <input type="password" id="adminPinInput" class="form-control text-center fs-5 fw-bold" placeholder="Enter PIN" style="letter-spacing:4px;" autocomplete="off">
+      <div id="pinErrorMsg" class="text-danger small mt-2" style="display:none;">Invalid PIN. (Default: <code>admin123</code>)</div>
+    </div>
+    <button class="btn btn-p w-100 py-2" onclick="verifyPin()">Unlock Admin Panel</button>
+  </div>
+
+  <!-- MAIN ADMIN DASHBOARD (When unlocked) -->
+  <div id="adminMainContent">
+
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="alert alert-info border-0 rounded-4 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2 py-3 px-4">
+          <div class="d-flex align-items-center gap-3">
+            <span style="font-size:1.5rem;">⚙️</span>
+            <div>
+              <strong>Visitor Counter & Cloudflare Engine</strong>
+              <div class="small text-muted">Configured for <strong>Option B (Daily Unique Visitors)</strong> with Cloudflare Worker D1 support.</div>
+            </div>
+          </div>
+          <div>
+            <span class="badge bg-success badge-status" id="backendStatusBadge">Checking API...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+
+      <!-- LEFT COLUMN: VISITOR COUNTER SETTINGS -->
+      <div class="col-lg-7">
+        <div class="card-admin">
+          <div class="card-admin-header">
+            <span>👁️</span> Visitor Counter Configuration (Option B & Modes)
+          </div>
+          <div class="card-admin-body">
+            
+            <div class="stat-kpi mb-4">
+              <div class="stat-kpi-num" id="liveVisitorCount">1,285</div>
+              <div class="stat-kpi-label">Active Total Visitor Count</div>
+              <small class="text-muted" id="statSubText">Syncs with Cloudflare D1 & Local Storage</small>
+            </div>
+
+            <label class="form-label fw-bold mb-2">Counter Counting Method:</label>
+
+            <!-- Mode 1: Daily Unique (Option B) -->
+            <div class="mode-option" id="modeOpt_daily" onclick="selectCounterMode('daily_unique')">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="mode-option-title">⭐ Option B: Daily Unique Visitor (24-Hour Expiration)</div>
+                <span class="badge bg-primary">Recommended</span>
+              </div>
+              <div class="mode-option-desc">
+                Increments +1 per visitor per calendar day. Refreshing or reopening the page on the same day reads the count without inflating stats.
+              </div>
+            </div>
+
+            <!-- Mode 2: Session Based -->
+            <div class="mode-option" id="modeOpt_session" onclick="selectCounterMode('session_unique')">
+              <div class="mode-option-title">⏱️ Session-Based (30-Minute Expiration)</div>
+              <div class="mode-option-desc">
+                Increments +1 once per 30 minutes of browsing activity.
+              </div>
+            </div>
+
+            <!-- Mode 3: Hit / Pageview (Option A) -->
+            <div class="mode-option" id="modeOpt_pageview" onclick="selectCounterMode('pageview')">
+              <div class="mode-option-title">🔄 Option A: Every Pageview / Reload</div>
+              <div class="mode-option-desc">
+                Increments +1 on every single page load or reload (useful for debugging and raw hit counters).
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <!-- Manually Set Baseline Count -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">Manual Count Baseline Adjustment:</label>
+              <div class="input-group">
+                <input type="number" id="manualCountInput" class="form-control" placeholder="e.g. 1500">
+                <button class="btn btn-outline-primary fw-semibold" onclick="applyManualCount()">Set Count</button>
+              </div>
+              <small class="text-muted">Allows setting the baseline start count (e.g. migrate previous website hits).</small>
+            </div>
+
+            <!-- Testing & Debug Actions -->
+            <div class="d-flex gap-2 flex-wrap mt-4">
+              <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" onclick="testIncrement()">🧪 Test Increment (+1)</button>
+              <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="clearLocalVisitCache()">🔄 Clear Local Test Cache</button>
+              <button class="btn btn-p btn-sm rounded-pill px-4 ms-auto" onclick="saveCounterSettings()">💾 Save Settings</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: ADSENSE & CLOUDFLARE SETTINGS -->
+      <div class="col-lg-5">
+        
+        <!-- Google AdSense Config Card -->
+        <div class="card-admin">
+          <div class="card-admin-header">
+            <span>📢</span> Google AdSense Settings
+          </div>
+          <div class="card-admin-body">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold small">Publisher ID (Client ID):</label>
+              <input type="text" id="adsensePubInput" class="form-control form-control-sm" placeholder="ca-pub-0000000000000000">
+              <small class="text-muted" style="font-size:0.75rem;">Located in your Google AdSense Dashboard.</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold small">Ad Slot IDs:</label>
+              <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text" style="font-size:0.75rem; width:100px;">Sidebar Slot</span>
+                <input type="text" id="adSlotSidebar" class="form-control" placeholder="1234567890">
+              </div>
+              <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text" style="font-size:0.75rem; width:100px;">List View Slot</span>
+                <input type="text" id="adSlotList" class="form-control" placeholder="2345678901">
+              </div>
+              <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text" style="font-size:0.75rem; width:100px;">Bottom Banner</span>
+                <input type="text" id="adSlotBottom" class="form-control" placeholder="1234567890">
+              </div>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="toggleBottomBannerSwitch" checked>
+              <label class="form-check-label small fw-semibold" for="toggleBottomBannerSwitch">Enable Docked Bottom Ad Banner</label>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="toggleAdPlaceholdersSwitch" checked>
+              <label class="form-check-label small fw-semibold" for="toggleAdPlaceholdersSwitch">Show Test Placeholder Boxes</label>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <a href="/ads.txt" target="_blank" class="small text-decoration-underline text-secondary">View ads.txt file</a>
+              <button class="btn btn-p btn-sm rounded-pill px-3" onclick="saveAdSenseSettings()">Save Ad Settings</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- System & Local Storage Health -->
+        <div class="card-admin">
+          <div class="card-admin-header">
+            <span>📊</span> System & Storage Statistics
+          </div>
+          <div class="card-admin-body" style="font-size:0.88rem;">
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Total Family Trees:</span>
+              <strong id="statTreeCount">1</strong>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Total Tree Members:</span>
+              <strong id="statMemberCount">0</strong>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Local Storage Footprint:</span>
+              <strong id="statStorageSize">~12 KB</strong>
+            </div>
+            <div class="d-flex justify-content-between py-2 border-bottom">
+              <span class="text-muted">Cookie Consent State:</span>
+              <span class="badge bg-secondary" id="statConsentBadge">Unset</span>
+            </div>
+            <div class="mt-3">
+              <button class="btn btn-sm btn-outline-danger w-100 rounded-pill" onclick="resetCookieConsentAdmin()">Reset Cookie Consent (Test Pop-up)</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+  <div id="adminToast" class="toast align-items-center text-white bg-dark border-0 rounded-4" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="adminToastMsg">Notification message</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ── PIN AUTHENTICATION ──────────────────────────────────────────
+  const DEFAULT_PIN = 'admin123';
+  let activeMode = 'daily_unique';
+
+  function checkAuth(){
+    const authenticated = sessionStorage.getItem('familyroot_admin_auth') === 'true';
+    if(authenticated){
+      document.getElementById('pinLockSection').style.display = 'none';
+      document.getElementById('adminMainContent').style.display = 'block';
+      loadSettings();
+    } else {
+      document.getElementById('pinLockSection').style.display = 'block';
+      document.getElementById('adminMainContent').style.display = 'none';
+    }
+  }
+
+  function verifyPin(){
+    const inp = document.getElementById('adminPinInput').value;
+    const storedPin = localStorage.getItem('familyroot_admin_pin') || DEFAULT_PIN;
+    if(inp === storedPin || inp === DEFAULT_PIN){
+      sessionStorage.setItem('familyroot_admin_auth', 'true');
+      document.getElementById('pinErrorMsg').style.display = 'none';
+      checkAuth();
+    } else {
+      document.getElementById('pinErrorMsg').style.display = 'block';
+    }
+  }
+
+  // ── LOAD & RENDER SETTINGS ──────────────────────────────────────
+  async function loadSettings(){
+    // 1. Visitor counter mode
+    activeMode = localStorage.getItem('familyroot_visitor_counter_mode') || 'daily_unique';
+    updateModeUI(activeMode);
+
+    // 2. Visitor count
+    let count = parseInt(localStorage.getItem('familyroot_visitors') || '1285');
+    updateCountDisplay(count);
+
+    // 3. AdSense settings
+    const pubId = localStorage.getItem('familyroot_adsense_pub') || 'ca-pub-0000000000000000';
+    document.getElementById('adsensePubInput').value = pubId;
+    document.getElementById('adSlotSidebar').value = localStorage.getItem('familyroot_adslot_sidebar') || '1234567890';
+    document.getElementById('adSlotList').value = localStorage.getItem('familyroot_adslot_list') || '2345678901';
+    document.getElementById('adSlotBottom').value = localStorage.getItem('familyroot_adslot_bottom') || '1234567890';
+    document.getElementById('toggleBottomBannerSwitch').checked = localStorage.getItem('familyroot_ad_bottom_enabled') !== 'false';
+    document.getElementById('toggleAdPlaceholdersSwitch').checked = localStorage.getItem('familyroot_ad_placeholders') !== 'false';
+
+    // 4. System statistics
+    loadSystemStats();
+
+    // 5. Ping backend worker API
+    try {
+      const res = await fetch('/api/health');
+      if(res.ok){
+        document.getElementById('backendStatusBadge').textContent = 'Cloudflare Worker Online';
+        document.getElementById('backendStatusBadge').className = 'badge bg-success badge-status';
+      } else {
+        throw new Error();
+      }
+    } catch(e) {
+      document.getElementById('backendStatusBadge').textContent = 'Local Standalone Mode';
+      document.getElementById('backendStatusBadge').className = 'badge bg-warning text-dark badge-status';
+    }
+
+    // Try fetching live DB visitor count
+    try {
+      const vRes = await fetch('/api/visitor-count');
+      if(vRes.ok){
+        const vData = await vRes.json();
+        if(vData && typeof vData.visitors === 'number'){
+          updateCountDisplay(vData.visitors);
+          localStorage.setItem('familyroot_visitors', vData.visitors.toString());
+        }
+      }
+    } catch(e){}
+  }
+
+  function updateModeUI(mode){
+    ['daily', 'session', 'pageview'].forEach(k => {
+      const el = document.getElementById('modeOpt_' + k);
+      if(el) el.classList.remove('active');
+    });
+    if(mode === 'daily_unique'){
+      document.getElementById('modeOpt_daily')?.classList.add('active');
+    } else if(mode === 'session_unique'){
+      document.getElementById('modeOpt_session')?.classList.add('active');
+    } else {
+      document.getElementById('modeOpt_pageview')?.classList.add('active');
+    }
+  }
+
+  function selectCounterMode(mode){
+    activeMode = mode;
+    updateModeUI(mode);
+  }
+
+  function updateCountDisplay(num){
+    const formatted = Number(num).toLocaleString();
+    document.getElementById('liveVisitorCount').textContent = formatted;
+    document.getElementById('topVisitorNum').textContent = formatted;
+  }
+
+  function saveCounterSettings(){
+    localStorage.setItem('familyroot_visitor_counter_mode', activeMode);
+    toast('Saved counter mode: ' + activeMode);
+  }
+
+  function applyManualCount(){
+    const val = parseInt(document.getElementById('manualCountInput').value);
+    if(isNaN(val) || val < 0){
+      toast('Please enter a valid positive number');
+      return;
+    }
+    localStorage.setItem('familyroot_visitors', val.toString());
+    updateCountDisplay(val);
+    document.getElementById('manualCountInput').value = '';
+    toast('Visitor count baseline updated to ' + val.toLocaleString());
+  }
+
+  function testIncrement(){
+    let cnt = parseInt(localStorage.getItem('familyroot_visitors') || '1285');
+    cnt += 1;
+    localStorage.setItem('familyroot_visitors', cnt.toString());
+    updateCountDisplay(cnt);
+    toast('Incremented count by +1 (Total: ' + cnt.toLocaleString() + ')');
+  }
+
+  function clearLocalVisitCache(){
+    localStorage.removeItem('familyroot_last_visit_date');
+    sessionStorage.removeItem('familyroot_session_time');
+    sessionStorage.removeItem('familyroot_session_counted');
+    toast('Local visit cache cleared! Next load will count as a new visit.');
+  }
+
+  function saveAdSenseSettings(){
+    localStorage.setItem('familyroot_adsense_pub', document.getElementById('adsensePubInput').value.trim());
+    localStorage.setItem('familyroot_adslot_sidebar', document.getElementById('adSlotSidebar').value.trim());
+    localStorage.setItem('familyroot_adslot_list', document.getElementById('adSlotList').value.trim());
+    localStorage.setItem('familyroot_adslot_bottom', document.getElementById('adSlotBottom').value.trim());
+    localStorage.setItem('familyroot_ad_bottom_enabled', document.getElementById('toggleBottomBannerSwitch').checked.toString());
+    localStorage.setItem('familyroot_ad_placeholders', document.getElementById('toggleAdPlaceholdersSwitch').checked.toString());
+    toast('AdSense settings saved successfully!');
+  }
+
+  function loadSystemStats(){
+    try {
+      const treesData = localStorage.getItem('familyroot_trees_v1');
+      if(treesData){
+        const parsed = JSON.parse(treesData);
+        document.getElementById('statTreeCount').textContent = (parsed.trees ? parsed.trees.length : 1);
+        let mCount = 0;
+        if(parsed.trees){
+          parsed.trees.forEach(t => { if(t.members) mCount += t.members.length; });
+        }
+        document.getElementById('statMemberCount').textContent = mCount;
+      }
+    } catch(e){}
+
+    let bytes = 0;
+    for(let k in localStorage){
+      if(localStorage.hasOwnProperty(k)){
+        bytes += ((localStorage[k].length + k.length) * 2);
+      }
+    }
+    document.getElementById('statStorageSize').textContent = (bytes / 1024).toFixed(1) + ' KB';
+
+    const consent = localStorage.getItem('familyroot_cookie_consent');
+    const badge = document.getElementById('statConsentBadge');
+    if(consent === 'all'){
+      badge.textContent = 'Accepted (All)';
+      badge.className = 'badge bg-success';
+    } else if(consent === 'essential'){
+      badge.textContent = 'Essential Only';
+      badge.className = 'badge bg-info';
+    } else {
+      badge.textContent = 'Not Consented Yet';
+      badge.className = 'badge bg-warning text-dark';
+    }
+  }
+
+  function resetCookieConsentAdmin(){
+    localStorage.removeItem('familyroot_cookie_consent');
+    loadSystemStats();
+    toast('Cookie consent cleared. Opening the homepage will now display the pop-up banner!');
+  }
+
+  function toast(msg){
+    document.getElementById('adminToastMsg').textContent = msg;
+    const t = new bootstrap.Toast(document.getElementById('adminToast'));
+    t.show();
+  }
+
+  // Auto-init on page load
+  checkAuth();
+</script>
+</body>
+</html>

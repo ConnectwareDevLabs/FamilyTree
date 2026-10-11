@@ -3,30 +3,56 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>FamilyRoot</title>
 
-<!--
-  FamilyRoot — index.html
-  ------------------------------------------------------------------
-  Structure/markup only. Pairs with:
-    styles.css → all visual styling
-    app.js     → all behaviour, state, and the tree-layout algorithm
+<!-- Primary SEO Meta Tags -->
+<title>FamilyRoot — Free Local-First Interactive Family Tree & Social Graph Builder</title>
+<meta name="title" content="FamilyRoot — Free Local-First Interactive Family Tree & Social Graph Builder">
+<meta name="description" content="Build, visualize, and share your family tree online with 100% data privacy. Interactive hierarchy tree view, social network graph, backup/restore, photo galleries, and zero cloud dependency.">
+<meta name="keywords" content="family tree maker, family root, genealogy chart builder, local first family tree, private family tree app, interactive social graph, ancestry viewer">
+<meta name="author" content="Connectware Dev Labs">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://familyroot.app/">
 
-  NOTE ON HOSTING: this file loads styles.css and app.js via relative
-  paths, so all three files must be served from a real web origin
-  (a local dev server, GitHub/Cloudflare Pages, etc.) — opening a
-  downloaded HTML file directly on a phone (e.g. tapping it from a
-  Downloads list) often only grants the browser access to that single
-  file, not its sibling files, and the CSS/JS won't load. If you need
-  something that just works when tapped directly on a phone with no
-  server, use the single self-contained .html build instead.
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://familyroot.app/">
+<meta property="og:title" content="FamilyRoot — Private & Interactive Family Tree Builder">
+<meta property="og:description" content="Create rich interactive family hierarchy charts and social graphs locally in your browser. 100% private, no signup required.">
 
-  Third-party libraries (all loaded from cdnjs, no build step needed):
-    Bootstrap 5  → modal dialogs + base grid/utility classes
-    html2canvas  → "Share as Picture" / PDF export (renders the tree to a canvas)
-    jsPDF        → "Share as PDF" export
-    msgpack-lite → binary (MessagePack) encoding for the compact .msgpack Backup file
--->
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="https://familyroot.app/">
+<meta property="twitter:title" content="FamilyRoot — Private & Interactive Family Tree Builder">
+<meta property="twitter:description" content="Create rich interactive family hierarchy charts and social graphs locally in your browser. 100% private, no signup required.">
+
+<!-- JSON-LD Structured Data for Search Engines -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "FamilyRoot",
+  "url": "https://familyroot.app/",
+  "description": "Free local-first interactive family tree and social graph generator with complete data privacy.",
+  "applicationCategory": "GenealogyApplication",
+  "operatingSystem": "All",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+
+<!-- Google AdSense -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000" crossorigin="anonymous"></script>
+
+<script>
+  (function(){
+    var t = localStorage.getItem('familyroot_theme') || 'purple';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -35,59 +61,96 @@
 <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
 <!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
+<div class="sidebar d-flex flex-column" id="sidebar">
   <div class="sb-head">
     <div class="sb-av">🌳</div>
     <div class="sb-name">FamilyRoot</div>
     <div class="sb-ct" id="sbCt">0 members</div>
   </div>
-  <div class="sb-item" onclick="openTreesModal();closeSidebar()"><span class="sb-icon">🗂️</span>My Trees</div>
-  <div class="sb-item" onclick="setView('tree');closeSidebar()"><span class="sb-icon">🌳</span>Hierarchy Tree</div>
-  <div class="sb-item" onclick="setView('graph');closeSidebar()"><span class="sb-icon">🕸️</span>Social Graph</div>
-  <div class="sb-item" onclick="setView('list');closeSidebar()"><span class="sb-icon">📋</span>Member List</div>
-  <div class="sb-item" onclick="doBackup();closeSidebar()"><span class="sb-icon">☁️</span>Backup</div>
-  <div class="sb-item" onclick="doRestore();closeSidebar()"><span class="sb-icon">🔄</span>Restore</div>
-  <div class="sb-item" onclick="openShare();closeSidebar()"><span class="sb-icon">📤</span>Share Tree</div>
-  <div class="sb-item" onclick="exportJSON();closeSidebar()"><span class="sb-icon">📥</span>Export Data</div>
-  <div class="sb-item" onclick="triggerImport();closeSidebar()"><span class="sb-icon">📲</span>Import Data</div>
-  <div class="sb-item" onclick="showToast('FamilyRoot v2.1 — Bootstrap 5');closeSidebar()"><span class="sb-icon">ℹ️</span>App Info</div>
+  <div style="flex:1; overflow-y:auto;">
+    <div class="sb-item" onclick="openTreesModal();closeSidebar()"><span class="sb-icon">🗂️</span>My Trees</div>
+    <div class="sb-item" onclick="setView('tree');closeSidebar()"><span class="sb-icon">🌳</span>Hierarchy Tree</div>
+    <div class="sb-item" onclick="setView('graph');closeSidebar()"><span class="sb-icon">🕸️</span>Social Graph</div>
+    <div class="sb-item" onclick="setView('list');closeSidebar()"><span class="sb-icon">📋</span>Member List</div>
+    <div class="sb-item" onclick="openThemeModal();closeSidebar()"><span class="sb-icon">🎨</span>Change Theme</div>
+    <div class="sb-item" onclick="doBackup();closeSidebar()"><span class="sb-icon">☁️</span>Backup</div>
+    <div class="sb-item" onclick="doRestore();closeSidebar()"><span class="sb-icon">🔄</span>Restore</div>
+    <div class="sb-item" onclick="openShare();closeSidebar()"><span class="sb-icon">📤</span>Share Tree</div>
+    <div class="sb-item" onclick="openAboutModal();closeSidebar()"><span class="sb-icon">ℹ️</span>About & User Guide</div>
+    <div class="sb-item" onclick="openPrivacyModal();closeSidebar()"><span class="sb-icon">🔒</span>Privacy & Cookies</div>
+    <div class="sb-item" style="cursor:default; background:var(--pp);"><span class="sb-icon">👁️</span><span>Visitors: <strong id="visitorCountBadge">1,285</strong></span></div>
+  </div>
+
+  <!-- Sidebar Non-intrusive AdSense Slot -->
+  <div class="sb-ad-wrap p-2 text-center border-top">
+    <div class="ad-label-bar rounded mb-1">
+      <span>Advertisement</span>
+    </div>
+    <div class="ad-slot-wrap">
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-0000000000000000"
+           data-ad-slot="1234567890"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+      <div class="ad-preview-box">
+        <span class="ad-preview-title">Google AdSense Space</span>
+        <span class="ad-preview-desc">Active upon AdSense approval</span>
+      </div>
+    </div>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
 </div>
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:4px;">
-    <button class="ib" onclick="openSidebar()">☰</button>
-    <span class="brand" id="brandTreeName" onclick="openTreesModal()" style="cursor:pointer;">FamilyRoot</span>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <button class="ib" onclick="openSidebar()" title="Menu">☰</button>
+    <span class="brand" id="brandTreeName" onclick="openTreesModal()" style="cursor:pointer;" title="Switch Family Tree">FamilyRoot</span>
+    <!-- Mobile View Dropdown (only visible on mobile screens < 768px) -->
+    <select id="viewSelectMobile" class="form-select form-select-sm view-select-mobile d-md-none" onchange="setView(this.value)">
+      <option value="tree">🌳 Hierarchy</option>
+      <option value="graph">🕸️ Graph</option>
+      <option value="list">📋 List</option>
+    </select>
   </div>
 
-  <div class="view-pills" id="viewPills">
+  <!-- Desktop & Tablet Tab View (visible on desktop & tablet >= 768px) -->
+  <div class="view-pills d-none d-md-flex" id="viewPills">
     <button class="view-pill active" data-view="tree" onclick="setView('tree')">🌳 Hierarchy</button>
     <button class="view-pill" data-view="graph" onclick="setView('graph')">🕸️ Graph</button>
     <button class="view-pill" data-view="list" onclick="setView('list')">📋 List</button>
   </div>
   
-  <div id="treeSearchWrap" style="position:relative;flex:1;max-width:280px;margin:0 8px;">
+  <div id="treeSearchWrap" style="position:relative;flex:1;max-width:300px;margin:0 8px;">
     <input type="text" class="fc" id="treeSrch" placeholder="🔍 Find..." autocomplete="off" style="border:none;border-radius:24px;background:rgba(255,255,255,0.25);color:#fff;padding:6px 14px;font-size:0.9rem;" oninput="onTreeSrchInput()" onfocus="onTreeSrchInput()" onblur="setTimeout(hideTreeSrchDD,200)">
     <div id="treeSrchDD" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:8px;background:#fff;color:#333;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.3);max-height:280px;overflow-y:auto;overflow-x:hidden;"></div>
   </div>
 
-    <div style="display:flex;align-items:center;gap:6px;">
-    <span class="badge-ct" id="topCt">0 members</span>
-    <button id="authUserBtn" class="btn btn-sm btn-light rounded-pill px-3 ms-1" onclick="openLoginModal()" style="font-weight:600;font-size:0.8rem;color:var(--p);">🔑 Sign In</button>
-    <div id="authUserWrap" class="dropdown" style="display:none;">
-      <button class="btn btn-sm btn-light rounded-pill px-2 py-1 dropdown-toggle" data-bs-toggle="dropdown" style="font-size:0.8rem;font-weight:600;">
-        <span id="authAvatar">👤</span> <span id="authUserName">User</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end p-2 shadow-sm" style="font-size:0.85rem;">
-        <li><div class="px-2 py-1 text-muted small" id="authUserEmail">user@example.com</div></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item rounded" href="#" onclick="openLinkMemberModal()">🔗 Link to Member Profile</a></li>
-        <li><a class="dropdown-item rounded text-danger" href="#" onclick="logoutUser()">🚪 Sign Out</a></li>
+  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+    <!-- VISITOR COUNTER -->
+    <span class="badge-ct" id="topVisitorCt" title="Unique Page Visitors">
+      <span>👁️</span> <span id="visitorCountNum">1,285</span>
+    </span>
+
+    <span class="badge-ct d-none d-md-inline-block" id="topCt">0 members</span>
+
+    <!-- THEME DROPDOWN -->
+    <div class="dropdown d-inline-block">
+      <button class="ib" data-bs-toggle="dropdown" title="Change Theme" id="themeBtn">🎨</button>
+      <ul class="dropdown-menu dropdown-menu-end shadow p-2" style="font-size:0.85rem; min-width:170px;">
+        <li><h6 class="dropdown-header px-2 py-1 text-uppercase text-muted" style="font-size:0.7rem; font-weight:700;">Color Themes</h6></li>
+        <li><a class="dropdown-item rounded d-flex align-items-center gap-2" href="#" onclick="setTheme('purple'); return false;"><span style="width:14px;height:14px;border-radius:50%;background:#7B2FBE;display:inline-block;"></span> Royal Purple</a></li>
+        <li><a class="dropdown-item rounded d-flex align-items-center gap-2" href="#" onclick="setTheme('ocean'); return false;"><span style="width:14px;height:14px;border-radius:50%;background:#0284C7;display:inline-block;"></span> Ocean Blue</a></li>
+        <li><a class="dropdown-item rounded d-flex align-items-center gap-2" href="#" onclick="setTheme('forest'); return false;"><span style="width:14px;height:14px;border-radius:50%;background:#059669;display:inline-block;"></span> Forest Green</a></li>
+        <li><a class="dropdown-item rounded d-flex align-items-center gap-2" href="#" onclick="setTheme('sunset'); return false;"><span style="width:14px;height:14px;border-radius:50%;background:#E11D48;display:inline-block;"></span> Sunset Rose</a></li>
+        <li><hr class="dropdown-divider my-1"></li>
+        <li><a class="dropdown-item rounded d-flex align-items-center gap-2" href="#" onclick="setTheme('dark'); return false;"><span style="width:14px;height:14px;border-radius:50%;background:#0F172A;border:1px solid #94a3b8;display:inline-block;"></span> Midnight Dark</a></li>
       </ul>
     </div>
-    <button class="ib" onclick="toggleView()" title="Cycle view">⇄</button>
-    <button class="ib" onclick="openShare()">📤</button>
-    <button class="ib" onclick="openAddRoot()">⋯</button>
+
+    <!-- Hidden Sign In elements (available for future auth/cloud sync) -->
+    <div id="authUserWrap" style="display:none;"></div>
   </div>
 </div>
 
@@ -122,7 +185,45 @@
 <!-- LIST VIEW -->
 <div id="listView">
   <div class="list-search"><input id="srch" placeholder="🔍  Search members…" oninput="renderList()"></div>
+  <!-- List View Non-intrusive AdSense Slot -->
+  <div class="p-2 border-bottom text-center" style="background:var(--pp);">
+    <div class="ad-label-bar rounded mb-1">
+      <span>Advertisement</span>
+    </div>
+    <div class="ad-slot-wrap">
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-0000000000000000"
+           data-ad-slot="2345678901"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+      <div class="ad-preview-box">
+        <span class="ad-preview-title">Google AdSense Feed Banner</span>
+        <span class="ad-preview-desc">Appears in member directory list</span>
+      </div>
+    </div>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
   <div id="listBody"></div>
+</div>
+
+<!-- BOTTOM DOCKED ADSENSE BANNER -->
+<div id="bottomAdBanner" class="bottom-ad-banner">
+  <div class="ad-label-bar">
+    <span>📢 Advertisement (Google AdSense Space)</span>
+    <button class="ad-close-btn" onclick="toggleBottomAd()" title="Minimize / Expand ad">✕</button>
+  </div>
+  <div class="ad-slot-wrap">
+    <ins class="adsbygoogle"
+         style="display:inline-block;width:728px;height:90px"
+         data-ad-client="ca-pub-0000000000000000"
+         data-ad-slot="1234567890"></ins>
+    <div class="ad-preview-box">
+      <span class="ad-preview-title">Google AdSense Display Banner (728x90 / Responsive)</span>
+      <span class="ad-preview-desc">Displays live Google ads once Publisher ID & ad slot are configured</span>
+    </div>
+  </div>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 </div>
 
 <!-- FABs -->
@@ -527,6 +628,180 @@
   </div>
 </div>
 
+<!-- ABOUT & USER GUIDE MODAL -->
+<div class="modal fade" id="aboutModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="mhead">
+        <span>🌳 About FamilyRoot & User Guide</span>
+        <button onclick="closeM('aboutModal')">✕</button>
+      </div>
+      <div class="modal-body p-4" style="font-size:0.9rem; line-height:1.6; color:#333;">
+        <div class="text-center mb-4">
+          <div style="font-size:3rem;">🌳</div>
+          <h4 class="fw-bold text-primary mb-1">FamilyRoot v2.2</h4>
+          <p class="text-muted small">Local-First, Privacy-Preserving Family Tree & Social Graph Builder</p>
+        </div>
+
+        <div class="card border-0 bg-light p-3 rounded-3 mb-4">
+          <h6 class="fw-bold text-dark mb-2">🔒 Privacy & Local Storage Architecture</h6>
+          <p class="mb-0 text-secondary small">
+            FamilyRoot operates on a <strong>100% local-first privacy model</strong>. All your family names, photos, birth dates, and relationship links are stored entirely within your browser's <code>LocalStorage</code> and <code>IndexedDB</code>. Your family data is never uploaded to any central server without your explicit sync request.
+          </p>
+        </div>
+
+        <h5 class="fw-bold text-primary mb-3">📖 How to Use FamilyRoot</h5>
+
+        <div class="d-flex gap-3 mb-3">
+          <div class="badge bg-primary rounded-circle p-2" style="width:28px;height:28px;flex-shrink:0;">1</div>
+          <div>
+            <strong>Create Your First Family Member:</strong>
+            <p class="text-muted small mb-0">Click the <code>➕ Add First Member</code> or topbar <code>⋯</code> button to start your tree with yourself or your ancestor.</p>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-3">
+          <div class="badge bg-primary rounded-circle p-2" style="width:28px;height:28px;flex-shrink:0;">2</div>
+          <div>
+            <strong>Add Parents, Spouses, Children & Siblings:</strong>
+            <p class="text-muted small mb-0">Click on any member card on the screen to open the action menu. From there you can add parents, spouse, children, or siblings. Use the <em>"Their Family"</em> quick-add section to add an entire immediate family at once!</p>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-3">
+          <div class="badge bg-primary rounded-circle p-2" style="width:28px;height:28px;flex-shrink:0;">3</div>
+          <div>
+            <strong>Switch Between Views:</strong>
+            <p class="text-muted small mb-0">Use the topbar switcher to toggle between <strong>🌳 Hierarchy Tree</strong> (classic ancestral layout), <strong>🕸️ Social Graph</strong> (interactive network diagram), and <strong>📋 Member List</strong> (searchable directory).</p>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-3">
+          <div class="badge bg-primary rounded-circle p-2" style="width:28px;height:28px;flex-shrink:0;">4</div>
+          <div>
+            <strong>Cross-Tree Person Directory & Reuse:</strong>
+            <p class="text-muted small mb-0">When adding new family members, type their name to see existing records from your other trees. Select a match to link the same person across multiple family branches!</p>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-4">
+          <div class="badge bg-primary rounded-circle p-2" style="width:28px;height:28px;flex-shrink:0;">5</div>
+          <div>
+            <strong>Backup, Export & Share:</strong>
+            <p class="text-muted small mb-0">Export your tree as high-resolution PNG pictures, PDF documents, JSON data, or compressed binary <code>.msgpack</code> backups via the sidebar. Keep regular backups to protect your family memory.</p>
+          </div>
+        </div>
+
+        <!-- AdSense slot inside About modal -->
+        <div class="text-center my-3 p-2 bg-light rounded">
+          <span style="font-size:0.65rem; color:#aaa; text-transform:uppercase;">Sponsored</span>
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-0000000000000000"
+               data-ad-slot="9876543210"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+          <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-primary rounded-pill px-4" onclick="closeM('aboutModal')">Got it!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVACY POLICY MODAL -->
+<div class="modal fade" id="privacyModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="mhead">
+        <span>🔒 Privacy Policy & Data Protections</span>
+        <button onclick="closeM('privacyModal')">✕</button>
+      </div>
+      <div class="modal-body p-4" style="font-size:0.88rem; line-height:1.6; color:#333;">
+        <h5 class="fw-bold text-primary mb-3">Your Family Privacy is Sacred</h5>
+        <p>FamilyRoot is designed with a strict privacy-first philosophy. We believe your family genealogy, relationships, photos, and personal dates belong solely to you.</p>
+
+        <h6 class="fw-bold mt-4 mb-2">1. Local Storage Data Storage</h6>
+        <p class="text-muted small">All member names, photos, notes, and relationship links are stored entirely within your device's web browser local storage (LocalStorage / IndexedDB). No family data is transmitted to external servers during regular offline/standalone use.</p>
+
+        <h6 class="fw-bold mt-4 mb-2">2. Cookies & Local Preference Items</h6>
+        <p class="text-muted small">We use minimal essential local cookies and storage items to remember your active view preference, active family tree ID, theme preferences, and cookie consent choice.</p>
+
+        <h6 class="fw-bold mt-4 mb-2">3. Analytics & Advertisements</h6>
+        <p class="text-muted small">We display non-intrusive advertisements provided by Google AdSense to support the maintenance of FamilyRoot. Google AdSense may use cookies to serve ads based on prior visits to website domains.</p>
+
+        <h6 class="fw-bold mt-4 mb-2">4. Your Data Rights</h6>
+        <p class="text-muted small">You retain full ownership of your data. You can export your full data at any time via <code>Export Data</code> or <code>Backup</code>, or completely delete your trees from local storage at any time.</p>
+      </div>
+      <div class="modal-footer border-0 d-flex justify-content-between">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="reopenCookieBanner(); closeM('privacyModal');">🍪 Manage Cookie Preferences</button>
+        <button class="btn btn-secondary rounded-pill px-4" onclick="closeM('privacyModal')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- THEME SELECTION MODAL -->
+<div class="modal fade" id="themeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="mhead">
+        <span>🎨 Select Color Theme</span>
+        <button onclick="closeM('themeModal')">✕</button>
+      </div>
+      <div class="modal-body p-3">
+        <div class="list-group list-group-flush">
+          <button type="button" class="list-group-item list-group-item-action border-0 rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-1" onclick="setTheme('purple'); closeM('themeModal');">
+            <span style="width:22px;height:22px;border-radius:50%;background:#7B2FBE;display:inline-block;box-shadow:0 2px 6px rgba(123,47,190,.4);"></span>
+            <div class="fw-semibold">Royal Purple (Default)</div>
+          </button>
+          <button type="button" class="list-group-item list-group-item-action border-0 rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-1" onclick="setTheme('ocean'); closeM('themeModal');">
+            <span style="width:22px;height:22px;border-radius:50%;background:#0284C7;display:inline-block;box-shadow:0 2px 6px rgba(2,132,199,.4);"></span>
+            <div class="fw-semibold">Ocean Blue</div>
+          </button>
+          <button type="button" class="list-group-item list-group-item-action border-0 rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-1" onclick="setTheme('forest'); closeM('themeModal');">
+            <span style="width:22px;height:22px;border-radius:50%;background:#059669;display:inline-block;box-shadow:0 2px 6px rgba(5,150,105,.4);"></span>
+            <div class="fw-semibold">Forest Green</div>
+          </button>
+          <button type="button" class="list-group-item list-group-item-action border-0 rounded-3 d-flex align-items-center gap-3 py-2 px-3 mb-1" onclick="setTheme('sunset'); closeM('themeModal');">
+            <span style="width:22px;height:22px;border-radius:50%;background:#E11D48;display:inline-block;box-shadow:0 2px 6px rgba(225,29,72,.4);"></span>
+            <div class="fw-semibold">Sunset Rose</div>
+          </button>
+          <button type="button" class="list-group-item list-group-item-action border-0 rounded-3 d-flex align-items-center gap-3 py-2 px-3" onclick="setTheme('dark'); closeM('themeModal');">
+            <span style="width:22px;height:22px;border-radius:50%;background:#0F172A;border:2px solid #818CF8;display:inline-block;box-shadow:0 2px 6px rgba(15,23,42,.4);"></span>
+            <div class="fw-semibold">Midnight Dark</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COOKIE CONSENT & PRIVACY NOTICE BANNER -->
+<div id="cookieConsentBanner" class="cookie-banner-popup">
+  <div class="cookie-banner-inner">
+    <div class="cookie-icon-col">🍪</div>
+    <div class="cookie-text-col">
+      <div class="cookie-title">Cookie & Privacy Notice</div>
+      <div class="cookie-desc">
+        FamilyRoot operates on a <strong>100% local-first privacy model</strong>. Your family tree data is stored strictly on your local device (in your browser's local storage) and is never transmitted to external cloud servers. We use essential local cookies for your preferences and Google AdSense for non-intrusive ads.
+      </div>
+      <div class="mt-2">
+        <a href="#" onclick="openPrivacyModal(); return false;" class="cookie-policy-link">
+          🔒 Read Full Privacy Policy & Data Terms &rarr;
+        </a>
+      </div>
+    </div>
+    <div class="cookie-btns-col">
+      <button class="btn btn-sm btn-outline-light rounded-pill px-3" onclick="acceptCookieConsent('essential')">Essential Only</button>
+      <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="acceptCookieConsent('all')">Accept All</button>
+    </div>
+  </div>
+</div>
+
 <!-- Third-party libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -534,25 +809,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
 
 <!-- Application scripts (loaded in dependency order) -->
-<script src="/js/data.js"></script>              <!-- State, member shape, save/load -->
-<script src="/js/trees.js"></script>             <!-- Tree CRUD: create/switch/rename/duplicate/delete -->
-<script src="/js/collapse.js"></script>          <!-- Collapse/expand, sub-family tags, daughter branching -->
-<script src="/js/person.js"></script>            <!-- People directory & cross-tree reuse -->
-<script src="/js/views.js"></script>             <!-- Tree vs list view switching -->
-<script src="/js/layout.js"></script>            <!-- Tree layout engine & SVG connectors -->
-<script src="/js/list.js"></script>              <!-- List view rendering -->
-<script src="/js/actions.js"></script>           <!-- Node action menu & branch-off -->
-<script src="/js/member-form.js"></script>       <!-- Add/edit member forms -->
-<script src="/js/multi-child.js"></script>       <!-- Add multiple children modal -->
-<script src="/js/view-member.js"></script>       <!-- Profile view & photo gallery -->
-<script src="/js/remove.js"></script>            <!-- Remove member confirmation -->
-<script src="/js/export.js"></script>            <!-- Share, export, backup/restore -->
-<script src="/js/ui-utils.js"></script>          <!-- Modals, sidebar, quick-add, float dropdown -->
-<script src="/js/pan-zoom.js"></script>          <!-- Canvas pan, zoom & touch gestures -->
-<script src="/js/drag-reorder.js"></script>      <!-- Drag to reorder siblings -->
-<script src="/js/search.js"></script>            <!-- Universal cross-tree search -->
-<script src="/js/graph.js"></script>             <!-- Interactive Social Graph Engine -->
-<script src="/js/auth.js"></script>
-<script src="/js/boot.js"></script>              <!-- Application initialization -->
+<script src="js/data.js"></script>              <!-- State, member shape, save/load -->
+<script src="js/trees.js"></script>             <!-- Tree CRUD: create/switch/rename/duplicate/delete -->
+<script src="js/collapse.js"></script>          <!-- Collapse/expand, sub-family tags, daughter branching -->
+<script src="js/person.js"></script>            <!-- People directory & cross-tree reuse -->
+<script src="js/views.js"></script>             <!-- Tree vs list view switching -->
+<script src="js/layout.js"></script>            <!-- Tree layout engine & SVG connectors -->
+<script src="js/list.js"></script>              <!-- List view rendering -->
+<script src="js/actions.js"></script>           <!-- Node action menu & branch-off -->
+<script src="js/member-form.js"></script>       <!-- Add/edit member forms -->
+<script src="js/multi-child.js"></script>       <!-- Add multiple children modal -->
+<script src="js/view-member.js"></script>       <!-- Profile view & photo gallery -->
+<script src="js/remove.js"></script>            <!-- Remove member confirmation -->
+<script src="js/export.js"></script>            <!-- Share, export, backup/restore -->
+<script src="js/ui-utils.js"></script>          <!-- Modals, sidebar, quick-add, float dropdown -->
+<script src="js/pan-zoom.js"></script>          <!-- Canvas pan, zoom & touch gestures -->
+<script src="js/drag-reorder.js"></script>      <!-- Drag to reorder siblings -->
+<script src="js/search.js"></script>            <!-- Universal cross-tree search -->
+<script src="js/graph.js"></script>             <!-- Interactive Social Graph Engine -->
+<script src="js/auth.js"></script>
+<script src="js/boot.js"></script>              <!-- Application initialization -->
 </body>
 </html>
