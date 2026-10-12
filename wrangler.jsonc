@@ -3,6 +3,9 @@
   "name": "familytree",
   "main": "src/index.js",
   "compatibility_date": "2026-10-03",
+  "build": {
+    "command": "node scripts/build-static.js"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
@@ -17,6 +20,9 @@
   "env": {
     "dev": {
       "name": "familytree-dev",
+      "build": {
+        "command": "node scripts/build-static.js"
+      },
       "assets": {
         "directory": "./dist",
         "binding": "ASSETS"
